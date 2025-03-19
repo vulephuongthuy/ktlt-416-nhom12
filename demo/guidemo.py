@@ -886,7 +886,7 @@ class Song(Base):
     def play_song(self, index):
         """Phát bài hát theo chỉ mục"""
         if self.is_paused:
-            self.resume_song()
+            self.pause_and_resume_song()
         elif self.songs_list and 0 <= index < len(self.songs_list):
             self.current_index = index
             song_path = self.songs_list[index]
@@ -928,7 +928,7 @@ class Song(Base):
             image=self.parent.buttons.image_cache[love_button_key]
         )
 
-    def pause_song(self):
+    def pause_and_resume_song(self):
         """Tạm dừng nhạc"""
         if self.is_paused:
             pygame.mixer.music.unpause()
@@ -953,24 +953,6 @@ class Song(Base):
                 image=self.parent.buttons.image_cache["play"]
             )
 
-    def resume_song(self):
-        """Tiếp tục phát nhạc nếu đã tạm dừng"""
-        if self.is_paused:
-            pygame.mixer.music.unpause()
-            self.is_paused = False
-            # Cập nhật lại thời gian bắt đầu phát (tránh bị lệch)
-            self.start_time += self.paused_time
-            self.paused_time = 0  # Reset giá trị tạm dừng để tránh cộng dồn sai
-            # Cập nhật lại thanh tiến trình
-            self.parent.buttons.update_progress_bar()
-            # Chỉ kiểm tra bài hát kết thúc nếu nhạc thực sự đang phát
-            if pygame.mixer.music.get_busy():
-                self.check_end_id = self.parent.after(1000, self.check_song_end)
-            # Đổi nút Play -> Pause
-            self.parent.buttons.canvas.itemconfig(
-                self.parent.buttons.play_button,
-                image=self.parent.buttons.image_cache["pause"]
-            )
 
     def next_song(self, event=None):
         if self.songs_list:
@@ -1094,7 +1076,7 @@ class Song(Base):
         if self.sleep_timer_running:
             self.sleep_timer_running = False  # Đánh dấu hẹn giờ đã kết thúc
             if not self.parent.songs.is_paused:
-                self.parent.songs.pause_song()  # Gọi hàm pause thay vì dừng nhạc
+                self.parent.songs.pause_and_resume_song()  # Gọi hàm pause thay vì dừng nhạc
 
     def stop_sleep_timer(self):
         """Hủy Sleep Timer"""
