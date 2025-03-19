@@ -100,7 +100,7 @@ class Profile(Toplevel):
         email = user.get("email", "N/A") # Lấy email cũ để dò
 
         if not new_username or not new_password:
-            messagebox.showerror("Lỗi", "Không được để trống thông tin!")
+            messagebox.showerror("Error", "Please enter all fields!")
             return
 
         try:
@@ -119,7 +119,7 @@ class Profile(Toplevel):
                     break
 
             if not user_found:
-                messagebox.showerror("Lỗi", "Không tìm thấy tài khoản!")
+                messagebox.showerror("Error", "Account not found!")
                 return
 
             # Ghi đè dữ liệu mới vào file JSON
@@ -127,9 +127,9 @@ class Profile(Toplevel):
                 json.dump(users, file, indent=4, ensure_ascii=False)
                 file.flush()
 
-            messagebox.showinfo("Thành công", "Thông tin đã được cập nhật!")
+            messagebox.showinfo("Success", "Information has been updated!")
         except Exception as e:
-            messagebox.showerror("Lỗi", f"Có lỗi xảy ra: {e}")
+            messagebox.showerror("Error", f"An error occurred: {e}")
 
     def load_profile_image(self, path):
         """Tải ảnh profile từ đường dẫn và hiển thị trên canvas"""
@@ -148,7 +148,7 @@ class Profile(Toplevel):
 
         except Exception as e:
             # Nếu có lỗi khi tải ảnh, fallback về ảnh mặc định
-            messagebox.showwarning("Lỗi", f"Không thể tải ảnh profile, dùng ảnh mặc định. Lỗi: {e}")
+            messagebox.showwarning("Warning", f"Failed to load profile picture, using default image. Error: {e}")
             self.load_profile_image(str(relative_to_assets("profile_default.png")))
 
     def change_profile_picture(self):
@@ -191,11 +191,10 @@ class Profile(Toplevel):
                 with open(json_path, "w", encoding="utf-8") as file:
                     json.dump(users, file, indent=4, ensure_ascii=False)
 
-                print(f"✅ Đã cập nhật {value} vào JSON thành công!")
             else:
-                messagebox.showerror("Lỗi", "Không tìm thấy tài khoản trong danh sách!")
+                messagebox.showerror("Error", "Account not found!")
 
         except json.JSONDecodeError:
             messagebox.showerror("Lỗi", "File JSON bị lỗi! Vui lòng kiểm tra lại.")
         except Exception as e:
-            messagebox.showerror("Lỗi", f"Có lỗi xảy ra khi cập nhật thông tin: {e}")
+            messagebox.showerror("Error", f"An error occurred: {e}")

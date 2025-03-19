@@ -5,7 +5,7 @@ import demo.guidemo
 # from demo.ui.functions import *
 from demo.guidemo import *
 
-class MoodTracker(tk.Toplevel,Base):  # ✅ Đảm bảo dùng Toplevel
+class MoodTracker(tk.Toplevel,Base):  # Đảm bảo dùng Toplevel
     def __init__(self, master=None):
         super().__init__(master)
         self.master = master
@@ -20,7 +20,7 @@ class MoodTracker(tk.Toplevel,Base):  # ✅ Đảm bảo dùng Toplevel
         self.canvas.place(x=0, y=0)
         self.image_cache = {}
         self.load_background()
-        MoodTrackerUI(self, self.canvas, self.image_cache)  # ✅ Không gọi mainloop() ở đây
+        MoodTrackerUI(self, self.canvas, self.image_cache)  # Không gọi mainloop() ở đây
 
     def load_background(self):
         """ Load nền và các hình ảnh """

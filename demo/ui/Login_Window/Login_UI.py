@@ -1,4 +1,3 @@
-import re
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -106,19 +105,11 @@ class LoginForm(Base):
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
 
-        if not self.is_valid_username(username):
-            messagebox.showerror("Lỗi","Username không hợp lệ! Chỉ chứa chữ cái, số, dấu gạch dưới (_), tối thiểu 3 ký tự.")
-            return
-
-        if len(password) < 6:
-            messagebox.showerror("Lỗi", "Mật khẩu phải có ít nhất 6 ký tự!")
-            return
-
         try:
             with open("../../data/users.json", "r") as file:
                 users = json.load(file)
         except FileNotFoundError:
-            messagebox.showerror("Lỗi", "Không tìm thấy dữ liệu người dùng.")
+            messagebox.showerror("Error", "User data not found.")
             return
 
         for user in users:
@@ -127,7 +118,7 @@ class LoginForm(Base):
                 self.open_moodtracker()
                 return
 
-        messagebox.showerror("Lỗi", "Sai tên đăng nhập hoặc mật khẩu!")
+        messagebox.showerror("Error", "Incorrect username or password!")
 
     def open_signup(self, event):
         self.master.withdraw()  # Ẩn màn hình đăng nhập
@@ -217,19 +208,19 @@ class SignUpForm(Base):
         password = self.password_entry.get().strip()
 
         if not name or not email or not username or not password:
-            messagebox.showerror("Error", "Vui lòng điền đầy đủ thông tin") #
+            messagebox.showerror("Error", "Please enter all fields") #
             return
 
         if not self.is_valid_username(username):
-            messagebox.showerror("Lỗi","Username không hợp lệ! Chỉ chứa chữ cái, số, dấu gạch dưới (_), tối thiểu 3 ký tự.")
+            messagebox.showerror("Error", "Invalid username! It must contain only letters, numbers, or underscores (_), with at least 3 characters.")
             return
 
         if not self.is_valid_email(email):
-            messagebox.showerror("Lỗi", "Email không hợp lệ! Vui lòng nhập đúng định dạng.")
+            messagebox.showerror("Error", "Invalid email format! Please enter a valid email.")
             return
 
         if len(password) < 6:
-            messagebox.showerror("Lỗi", "Mật khẩu phải có ít nhất 6 ký tự!")
+            messagebox.showerror("Error", "Password must be at least 6 characters long!")
             return
 
         self.save_user(username, password, name, email)
@@ -243,10 +234,10 @@ class SignUpForm(Base):
 
         for user in users:
             if user["username"] == username:
-                print("Tên đăng nhập đã tồn tại!")
+                messagebox.showerror("Error", "Username already exists!")
                 return
             if user["email"] == email:
-                print("Email đã được đăng ký!")
+                messagebox.showerror("Error", "Email is already registered!")
                 return
 
             # Thêm người dùng mới vào danh sách
@@ -275,22 +266,33 @@ class SignUpForm(Base):
         msg = MIMEMultipart()
         msg["From"] = EMAIL_ADDRESS
         msg["To"] = user_email
-        msg["Subject"] = "Chào Mừng Bạn đến với Moo_d!"
+        msg["Subject"] = "Welcome to Moo_d!"
 
-        body = f"Chào mừng {user_email}! Bạn đã trở thành thành viên của Moo_d."
+        body = """
+        Hi there,
+
+        Thank you for signing up for Moo_d Music – your new favorite place to vibe, discover, and enjoy music that matches your mood.
+
+        We’re thrilled to have you on board!
+
+        Stay tuned for curated playlists, personalized mood tracks, and fresh beats tailored just for you.
+
+        Let’s set the Moo_d together.
+
+        Cheers,  
+        The Moo_d Team
+        """
         msg.attach(MIMEText(body, "plain"))
 
         try:
             with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
                 server.login(EMAIL_ADDRESS, APP_PASSWORD)
                 server.sendmail(EMAIL_ADDRESS, user_email, msg.as_string())
-            print(f"Email đã gửi thành công đến {user_email}")
         except smtplib.SMTPAuthenticationError as e:
-            print(f"Lỗi xác thực khi gửi email: {e}")
             messagebox.showerror("Lỗi", f"Không thể xác thực tài khoản Gmail. Vui lòng kiểm tra mật khẩu ứng dụng. {e}")
         except Exception as e:
             print(f"Lỗi khi gửi email đến {user_email}: {e}")
-            messagebox.showerror("Lỗi", f"Không thể gửi email. Vui lòng thử lại sau. {e}")
+            messagebox.showerror("Error", f"Failed to send email. Please try again later. {e}")
 
     def go_back(self):
         self.master.destroy()

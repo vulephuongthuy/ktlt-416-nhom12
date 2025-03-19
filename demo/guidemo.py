@@ -662,7 +662,7 @@ class Song(Base):
                 file.flush()
                 return
         except Exception as e:
-            messagebox.showerror("Lỗi", f"Có lỗi xảy ra: {e}")
+            messagebox.showerror("Error", f"An error occurred: {e}")
 
 
     def update_history_songs(self, song_id):
@@ -689,7 +689,7 @@ class Song(Base):
                 file.flush()
                 return
         except Exception as e:
-            messagebox.showerror("Lỗi", f"Có lỗi xảy ra: {e}")
+            messagebox.showerror("Error", f"An error occurred: {e}")
 
 
     def add_to_favorites(self):
@@ -1062,10 +1062,10 @@ class Song(Base):
             # Chạy đếm ngược trong một luồng riêng để không chặn UI
             self.sleep_thread = threading.Thread(target=self.run_sleep_timer, daemon=True)
             self.sleep_thread.start()
-            messagebox.showinfo("Sleep Timer", f"Ứng dụng sẽ dừng nhạc sau {minutes} phút.")
+            messagebox.showinfo("Sleep Timer", f"App will stop playing music in {minutes} minutes.")
 
         except ValueError:
-            messagebox.showerror("Lỗi", "Vui lòng nhập một số nguyên hợp lệ!")
+            messagebox.showerror("Error", "Please enter an integer!")
 
     def run_sleep_timer(self):
         """Chạy Sleep Timer, tạm dừng nhạc khi hết giờ"""
