@@ -1,15 +1,20 @@
 import json
+import shutil
 from pathlib import Path
 from tkinter import *
-from tkinter import messagebox
+from tkinter import messagebox, filedialog
 
 from PIL import Image, ImageTk
 from customtkinter import CTkEntry
 
-import session
+import demo.session
 
 OUTPUT_PATH = Path(__file__).parent
-ASSETS_PATH = OUTPUT_PATH / Path(r"F:\Final\demo\assets\frame0")
+ASSETS_PATH = OUTPUT_PATH / Path(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0")
+PROFILE_PIC_PATH = OUTPUT_PATH / ("profile_pictures")
+
+# Đảm bảo thư mục lưu ảnh tồn tại
+PROFILE_PIC_PATH.mkdir(parents=True, exist_ok=True)
 
 def relative_to_assets(path: str) -> Path:
     return ASSETS_PATH / Path(path)
@@ -19,12 +24,8 @@ class Profile(Toplevel):
         super().__init__(parent)
         self.title("Demo")
         self.geometry("600x550")
-        self.iconbitmap(r"F:\Final\demo\assets\frame0\logo.ico")
-
-
-
-
-
+        self.resizable(False, False)
+        self.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0\logo.ico")
 
         self.canvas = Canvas(self, width=800, height=600)
         self.canvas.place(x=0, y=0)
@@ -33,10 +34,26 @@ class Profile(Toplevel):
         self.background = PhotoImage(file=relative_to_assets("background.png"))
         self.canvas.create_image(0, 0, anchor=NW, image=self.background)
 
-        # Load ảnh Profile
-        self.profile= PhotoImage(file=relative_to_assets("profile.png"))
-        self.canvas.create_image(24, 91, anchor=NW, image=self.profile)
+        # Hiển thị ảnh Profile (mặc định nếu chưa có ảnh)
+        self.profile_path = demo.session.current_user.get("profile_picture")
 
+        # Nếu không có ảnh profile hoặc ảnh không tồn tại, dùng ảnh mặc định
+        if not self.profile_path or not isinstance(self.profile_path, str) or not Path(self.profile_path).exists():
+            self.profile_path = str(relative_to_assets("profile_default.jpg"))  # Sử dụng ảnh mặc định
+
+        self.load_profile_image(self.profile_path)  # Hiển thị ảnh lên giao diện
+
+        # Nút thay đổi ảnh profile
+        self.change_photo_button = Button(
+            self,
+            text="Change pic",
+            command=self.change_profile_picture,
+            relief="flat",
+            bg="#A352D9",
+            fg="white",
+            font=("Jua", 14)
+        )
+        self.change_photo_button.place(x=25, y=190, width=110, height=30)
 
         self.canvas.create_text(230, 25, text="Profile", font=("Inter", 35), fill="white", anchor=NW)
         self.canvas.create_text(25, 236, text="E-mail", font=("Jua", 25), fill="#A352D9", anchor=NW)
@@ -53,7 +70,7 @@ class Profile(Toplevel):
         )
         self.update_button.place(x=130.0, y=470.0, width=332.0, height=52.0)
         # User input
-        user = session.current_user or {}
+        user = demo.session.current_user or {}
 
         name = user.get("name","")
         email = user.get("email", "N/A")
@@ -66,10 +83,6 @@ class Profile(Toplevel):
 
         self.canvas.create_text(265, 255, text=email, font=("Jua", 18), fill="black")
 
-        # self.email_entry = CTkEntry(self, font=("Jua", 18), fg_color="white", width=390, height=30, border_width=0, corner_radius=0)
-        # self.email_entry.insert(0, email)
-        # self.email_entry.place(x=180, y=240)
-
         self.username_entry = CTkEntry(self, font=("Jua", 18), fg_color="white", width=390, height=30, border_width=0, corner_radius=0)
         self.username_entry.insert(0, username)
         self.username_entry.place(x=180, y=310)
@@ -80,7 +93,7 @@ class Profile(Toplevel):
 
     def update_info(self):
         """Cập nhật thông tin người dùng và lưu vào file JSON"""
-        user = session.current_user or {}
+        user = demo.session.current_user or {}
         new_name = self.name_entry.get().strip()
         new_username = self.username_entry.get().strip()
         new_password = self.password_entry.get().strip()
@@ -92,7 +105,7 @@ class Profile(Toplevel):
 
         try:
             # Đọc dữ liệu từ users.json
-            with open("F:/Final/demo/data/users.json", "r", encoding="utf-8") as file:
+            with open("../../data/users.json", "r", encoding="utf-8") as file:
                 users = json.load(file)
 
             user_found = False
@@ -101,7 +114,7 @@ class Profile(Toplevel):
                     user["name"] = new_name
                     user["username"] = new_username
                     user["password"] = new_password
-                    session.current_user = user  # Cập nhật lại thông tin trong session
+                    demo.session.current_user = user  # Cập nhật lại thông tin trong session
                     user_found = True
                     break
 
@@ -110,10 +123,79 @@ class Profile(Toplevel):
                 return
 
             # Ghi đè dữ liệu mới vào file JSON
-            with open("F:/Final/demo/data/users.json", "w", encoding="utf-8") as file:
+            with open("../../data/users.json", "w", encoding="utf-8") as file:
                 json.dump(users, file, indent=4, ensure_ascii=False)
                 file.flush()
 
             messagebox.showinfo("Thành công", "Thông tin đã được cập nhật!")
         except Exception as e:
             messagebox.showerror("Lỗi", f"Có lỗi xảy ra: {e}")
+
+    def load_profile_image(self, path):
+        """Tải ảnh profile từ đường dẫn và hiển thị trên canvas"""
+        try:
+            # Kiểm tra xem ảnh có tồn tại không
+            if not Path(path).exists():
+                path = str(relative_to_assets("profile_default.png"))  # Fallback về ảnh mặc định
+
+            img = Image.open(path)
+            img = img.resize((110, 110), Image.LANCZOS)  # Resize ảnh profile
+            self.profile_photo = ImageTk.PhotoImage(img)
+
+            # Xóa ảnh cũ trước khi thêm ảnh mới
+            self.canvas.delete("profile_pic")
+            self.canvas.create_image(24, 91, anchor=NW, image=self.profile_photo, tags="profile_pic")
+
+        except Exception as e:
+            # Nếu có lỗi khi tải ảnh, fallback về ảnh mặc định
+            messagebox.showwarning("Lỗi", f"Không thể tải ảnh profile, dùng ảnh mặc định. Lỗi: {e}")
+            self.load_profile_image(str(relative_to_assets("profile_default.png")))
+
+    def change_profile_picture(self):
+        """Mở hộp thoại chọn ảnh và cập nhật ảnh profile"""
+        file_path = filedialog.askopenfilename(
+            title="Chọn ảnh",
+            filetypes=[("Ảnh PNG", "*.png"), ("Ảnh JPG", "*.jpg"), ("Ảnh JPEG", "*.jpeg"),
+                       ("Tất cả ảnh", "*.png;*.jpg;*.jpeg")]
+        )
+
+        if file_path:
+            # Lưu ảnh vào thư mục profile_pictures
+            new_file_path = PROFILE_PIC_PATH / Path(file_path).name
+            shutil.copy(file_path, new_file_path)  # Sao chép ảnh vào thư mục lưu trữ
+
+            # Cập nhật vào file JSON ngay lập tức
+            self.update_user_data(str(new_file_path))
+            self.load_profile_image(str(new_file_path))
+            return  # Kết thúc hàm để tránh lỗi
+
+    def update_user_data(self, value):
+        """Cập nhật dữ liệu của user trong file JSON"""
+        try:
+            json_path = "../../data/users.json"
+
+            # Đọc dữ liệu từ JSON
+            with open(json_path, "r", encoding="utf-8") as file:
+                users = json.load(file)
+
+            user_found = False
+            for user in users:
+                if user.get("email") == demo.session.current_user.get("email"):  # Tìm đúng user
+                    user["profile_picture"] = value  # Cập nhật thông tin mới
+                    demo.session.current_user["profile_picture"] = value  # Cập nhật session
+                    user_found = True
+                    break
+
+            if user_found:
+                # Ghi lại dữ liệu vào file JSON
+                with open(json_path, "w", encoding="utf-8") as file:
+                    json.dump(users, file, indent=4, ensure_ascii=False)
+
+                print(f"✅ Đã cập nhật {value} vào JSON thành công!")
+            else:
+                messagebox.showerror("Lỗi", "Không tìm thấy tài khoản trong danh sách!")
+
+        except json.JSONDecodeError:
+            messagebox.showerror("Lỗi", "File JSON bị lỗi! Vui lòng kiểm tra lại.")
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Có lỗi xảy ra khi cập nhật thông tin: {e}")

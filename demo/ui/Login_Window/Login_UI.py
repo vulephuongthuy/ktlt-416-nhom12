@@ -1,39 +1,24 @@
+import re
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from tkinter import messagebox
 from customtkinter import CTkEntry, CTkButton
-from ui.Login_Window import Mood_tracker_ui
-from ui.Login_Window.Mood_tracker_ui import *
-from ui.functions import relative_to_assets, reduce_opacity, round_corners
+# from demo.ui.Login_Window import Mood_tracker_ui
+from demo.ui.Login_Window.Mood_tracker_ui import *
+# from demo.ui.functions import relative_to_assets, reduce_opacity, round_corners
 import json
-import SignUp_UI
-import session
-
-class Base:
-    def __init__(self):
-        self.image_cache = {}  # Lưu trữ hình ảnh tránh bị xóa
-
-    def load_image(self, path, opacity=None, size=None, rotate=None, round_corner=None):
-        try:
-            img = Image.open(relative_to_assets(path))
-            if opacity is not None:
-                img = reduce_opacity(img, opacity)
-            if size:
-                img = img.resize(size)
-            if rotate:
-                img = img.rotate(rotate)
-            if round_corner:
-                img = round_corners(img, round_corner)
-            return ImageTk.PhotoImage(img)
-        except FileNotFoundError:
-            print(f"Không tìm thấy ảnh: {path}")
-            return None
-
+import demo.session
+from demo.ui.Login_Window.Mood_tracker_ui import MoodTracker #
+from demo.guidemo import Base
 
 class LoginScreen(Base):
-    def __init__(self):
+    def __init__(self, master = None):
         super().__init__()
-        self.window = Tk()
+        self.window = master if master else Tk()
         self.window.title("Login")
         self.window.geometry("1000x600")
+        self.window.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0\logo.ico")
         self.window.configure(bg="white")
         self.window.resizable(False, False)
         self.canvas = Canvas(self.window, bg="#FFFFFF", height=600, width=1000, bd=0, highlightthickness=0,
@@ -72,7 +57,6 @@ class LoginForm(Base):
         self.canvas.create_text(460, 70, anchor="nw", text="Welcome!", fill="#F09D9D", font=("Inter Bold", 50, "bold"))
         self.canvas.create_text(525, 170, text="Username:", font=("Inter", 16), fill="#F09D9D", anchor="w")
         self.canvas.create_text(525, 270, text="Password:", font=("Inter", 16), fill="#F09D9D", anchor="w")
-
 
         # Entry cho Username và Password
         self.username_entry = CTkEntry(
@@ -117,22 +101,30 @@ class LoginForm(Base):
                                 tags="signup")
         self.canvas.tag_bind("signup", "<Button-1>", self.open_signup)
 
+
     def attempt_login(self):
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
+
+        if not self.is_valid_username(username):
+            messagebox.showerror("Lỗi","Username không hợp lệ! Chỉ chứa chữ cái, số, dấu gạch dưới (_), tối thiểu 3 ký tự.")
+            return
+
+        if len(password) < 6:
+            messagebox.showerror("Lỗi", "Mật khẩu phải có ít nhất 6 ký tự!")
+            return
 
         try:
             with open("../../data/users.json", "r") as file:
                 users = json.load(file)
         except FileNotFoundError:
-            print("Chưa có Info người dùng. Vui lòng đăng kí")
+            messagebox.showerror("Lỗi", "Không tìm thấy dữ liệu người dùng.")
             return
 
         for user in users:
             if user["username"] == username and user["password"] == password:
-                session.current_user = user
+                demo.session.current_user = user
                 self.open_moodtracker()
-                print(session.current_user)# Mở giao diện tiếp theo
                 return
 
         messagebox.showerror("Lỗi", "Sai tên đăng nhập hoặc mật khẩu!")
@@ -142,25 +134,27 @@ class LoginForm(Base):
         self.master.after(500, self.start_signup)  # Đợi 500ms rồi mở SignUpScreen
 
     def start_signup(self):
-        from ui.Login_Window.SignUp_UI import SignUpScreen
-        self.new_window = SignUpScreen(master=self.master)  # ✅ Truyền LoginScreen làm master
+        self.new_window = SignUpScreen(master=self.master)  # Truyền LoginScreen làm master
 
     def open_moodtracker(self):
-        print("🔹 Chuyển sang MoodTracker...")
-        self.master.withdraw()  # ✅ Ẩn cửa sổ thay vì đóng hoàn toàn
-        self.master.after(500, self.start_moodtracker)  # ✅ Đợi 500ms trước khi mở MoodTracker
+        if hasattr(self, "mood_tracker") and self.mood_tracker is not None:
+            self.mood_tracker.destroy()
+            self.mood_tracker = None
+        self.master.withdraw()  # Ẩn cửa sổ thay vì đóng hoàn toàn
+        self.master.after(500, self.start_moodtracker) # Đợi 500ms trước khi mở MoodTracker
 
     def start_moodtracker(self):
         """Mở giao diện MoodTracker"""
-        from ui.Login_Window.Mood_tracker_ui import MoodTracker  # ✅ Import ở đây để tránh lỗi vòng lặp import
-        self.new_window = MoodTracker(self.master)  # ✅ Truyền cửa sổ gốc vào MoodTracker
+        self.mood_tracker = MoodTracker(self.master)  # Truyền cửa sổ gốc vào MoodTracker
+
 
 class SignUpScreen(Toplevel, Base):
-    def __init__(self, master=None):
+    def __init__(self, master = None):
         super().__init__(master)
         Base.__init__(self)
         self.title("Sign Up")
         self.geometry("1000x600")
+        self.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0\logo.ico")
         self.configure(bg="white")
         self.resizable(False, False)
         self.canvas = Canvas(self, bg="#FFFFFF", height=600, width=1000, bd=0, highlightthickness=0, relief="ridge")
@@ -192,8 +186,7 @@ class SignUpForm(Base):
         self.create_widgets()
 
     def create_widgets(self):
-        self.canvas.create_text(569.0, 37.0, anchor="nw", text="Create Account", fill="#F09D9D",
-                                font=("Inter Bold", 40 * -1, "bold"))
+        self.canvas.create_text(569.0, 37.0, anchor="nw", text="Create Account",font=("Inter Bold", 40 * -1, "bold"), fill="#F09D9D")
         self.canvas.create_text(530, 100, anchor="nw", text="Name:", font=("Inter", 16), fill="#F09D9D")
         self.canvas.create_text(530, 195, anchor="nw", text="Email:", font=("Inter", 16), fill="#F09D9D")
         self.canvas.create_text(530, 288, anchor="nw", text="Username:", font=("Inter", 16), fill="#F09D9D")
@@ -224,7 +217,19 @@ class SignUpForm(Base):
         password = self.password_entry.get().strip()
 
         if not name or not email or not username or not password:
-            print("Vui lòng điền đầy đủ thông tin!")
+            messagebox.showerror("Error", "Vui lòng điền đầy đủ thông tin") #
+            return
+
+        if not self.is_valid_username(username):
+            messagebox.showerror("Lỗi","Username không hợp lệ! Chỉ chứa chữ cái, số, dấu gạch dưới (_), tối thiểu 3 ký tự.")
+            return
+
+        if not self.is_valid_email(email):
+            messagebox.showerror("Lỗi", "Email không hợp lệ! Vui lòng nhập đúng định dạng.")
+            return
+
+        if len(password) < 6:
+            messagebox.showerror("Lỗi", "Mật khẩu phải có ít nhất 6 ký tự!")
             return
 
         self.save_user(username, password, name, email)
@@ -249,15 +254,43 @@ class SignUpForm(Base):
             "name": name,
             "email": email,
             "username": username,
-            "password": password
+            "password": password,
+            "history": [], #
+            "favorite_songs": [],
+            "profile_picture": str(relative_to_assets("profile_default.jpg"))
         }
-        users.append(new_user)  # ✅ Thêm user vào danh sách
+        users.append(new_user)
 
         # Lưu danh sách mới vào file JSON
         with open("../../data/users.json", "w", encoding="utf-8") as f:
             json.dump(users, f, indent=4, ensure_ascii=False)
-        print("User registered successfully!")
+        messagebox.showinfo("Success", "User registered successfully!")
+        self.send_welcome_email(email)
         self.go_back()
+
+    def send_welcome_email(self, user_email):
+        EMAIL_ADDRESS = "thutna23416@st.uel.edu.vn"
+        APP_PASSWORD = "wyas ubap nhqv wwap"
+
+        msg = MIMEMultipart()
+        msg["From"] = EMAIL_ADDRESS
+        msg["To"] = user_email
+        msg["Subject"] = "Chào Mừng Bạn đến với Moo_d!"
+
+        body = f"Chào mừng {user_email}! Bạn đã trở thành thành viên của Moo_d."
+        msg.attach(MIMEText(body, "plain"))
+
+        try:
+            with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+                server.login(EMAIL_ADDRESS, APP_PASSWORD)
+                server.sendmail(EMAIL_ADDRESS, user_email, msg.as_string())
+            print(f"Email đã gửi thành công đến {user_email}")
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"Lỗi xác thực khi gửi email: {e}")
+            messagebox.showerror("Lỗi", f"Không thể xác thực tài khoản Gmail. Vui lòng kiểm tra mật khẩu ứng dụng. {e}")
+        except Exception as e:
+            print(f"Lỗi khi gửi email đến {user_email}: {e}")
+            messagebox.showerror("Lỗi", f"Không thể gửi email. Vui lòng thử lại sau. {e}")
 
     def go_back(self):
         self.master.destroy()

@@ -1,27 +1,58 @@
 import json
+import re
+import threading
 import time
 import tkinter as tk
-from pathlib import Path
+# from pathlib import Path
 
-# from tkinter import *
+from tkinter import *
 # Explicit imports to satisfy Flake8
-from tkinter import Canvas, PhotoImage, Scrollbar, Scale, Frame, Label, Menu, Entry
+from tkinter import Canvas, PhotoImage, Scrollbar, Scale, Frame, Label, Menu, Entry, messagebox
 from tkinter.constants import VERTICAL
 
 import pygame
-from PIL import Image, ImageDraw, ImageTk
+# from PIL import Image, ImageDraw, ImageTk
 from PIL.Image import Resampling
 from mutagen.mp3 import MP3
 from pygame import mixer
-from p import Profile
+
+from demo import session
+from demo.ui.functions import *
+from demo.p import Profile
+
 
 
 class Base:
     def __init__(self):
         super().__init__()
-        self.image_cache = {}  # Lưu trữ hình ảnh để tránh bị xóa bởi garbage collector
+        self.image_cache = {} # Lưu trữ hình ảnh để tránh bị xóa bởi garbage collector
+
     def relative_to_assets(self, path):
-        return str(Path(r"F:/Final/demo/assets/frame0") / path)  #Trả về đường dẫn đầy đủ của file ảnh
+        return str(Path(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0") / path)
+
+    def load_image(self, path, opacity=None, size=None, rotate=None, round_corner=None):
+        try:
+            img = Image.open(relative_to_assets(path))
+            if opacity is not None:
+                img = reduce_opacity(img, opacity)
+            if size:
+                img = img.resize(size)
+            if rotate:
+                img = img.rotate(rotate)
+            if round_corner:
+                img = round_corners(img, round_corner)
+            return ImageTk.PhotoImage(img)
+        except FileNotFoundError:
+            print(f"Không tìm thấy ảnh: {path}")
+            return None
+
+    def is_valid_username(self, username):
+        """Kiểm tra username chỉ chứa chữ cái, số, dấu gạch dưới (_), tối thiểu 3 ký tự."""
+        return re.match(r"^[a-zA-Z0-9_]{3,}$", username) is not None
+
+    def is_valid_email(self, email):
+        """Kiểm tra định dạng email hợp lệ."""
+        return re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email) is not None
 
 
 class MainScreen(tk.Toplevel):
@@ -30,7 +61,7 @@ class MainScreen(tk.Toplevel):
         self.mood = mood
         self.resizable(False, False)
         self.title("Moo_d")
-        self.iconbitmap(r"F:\Final\demo\assets\frame0\logo.ico")
+        self.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0\logo.ico")
         self.geometry("1000x600+120+15")
         self.main_color = "#9E80AD" if self.mood == "sad" else "#E1CFE3"
         self.configure(bg="#FFFFFF")
@@ -47,6 +78,7 @@ class MainScreen(tk.Toplevel):
         self.buttons.volume()
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.update_colors()
+        self.songs.load_user_songs()
 
         self.mainloop()
 
@@ -144,7 +176,25 @@ class Button(Base):
         self.menu.post(x, y)
 
     def logout(self):
-        self.parent.quit()
+        """Xử lý khi bấm nút Log out"""
+        try:
+            # Lấy cửa sổ chính từ self.parent thay vì self
+            root = self.parent.winfo_toplevel() if hasattr(self, "parent") else self.winfo_toplevel()
+
+            # Đóng cửa sổ chính
+            if isinstance(root, tk.Tk) or isinstance(root, tk.Toplevel):
+                root.destroy()
+            else:
+                print("Không thể đóng cửa sổ chính!")
+        except Exception as e:
+            print(f"Lỗi khi đóng cửa sổ chính: {e}")
+        self.parent.after(100, self.open_loginUI)
+
+    def open_loginUI(self):
+        """Mở lại màn hình đăng nhập"""
+        from demo.ui.Login_Window.Login_UI import LoginScreen
+        root = tk.Toplevel()
+        login_screen = LoginScreen(master=root)
 
     def create_title(self):
         """Tạo hoặc cập nhật tiêu đề"""
@@ -213,13 +263,14 @@ class Button(Base):
             "total_time_text": ("text", (873, 570), "0:00"),
         }
         for name, (shape, coords, *extra) in elements.items():
+            text_color = "#FFFFFF" if self.parent.mood == "sad" else "#000000"
             if shape == "rectangle":
                 setattr(self, name, self.canvas.create_rectangle(*coords, fill=extra[0], outline=""))
             elif shape == "oval":
                 setattr(self, name, self.canvas.create_oval(*coords, fill=extra[0], outline=""))
             elif shape == "text":
                 setattr(self, name, self.canvas.create_text(*coords, anchor="nw",
-                                                            text=extra[0], fill="#000000",
+                                                            text=extra[0], fill=text_color,
                                                             font=("Newsreader Regular", -14)))
 
         # Gán sự kiện chuột để kéo thanh tiến trình
@@ -286,23 +337,31 @@ class Button(Base):
             "repeat always": "repeat always.png",
             "love(1)": "heart (1) 1.png",
             "love(2)": "heart (2) 1.png",
+            "sleeptimer": "sleeptimer.png",
         }
         for key, filename in icons.items():
-            self.image_cache[key] = PhotoImage(
-                file=self.relative_to_assets(filename))
+            image_path = self.relative_to_assets(filename)
+            if key == "sleeptimer":
+                img = Image.open(image_path)
+                img = img.resize((40, 40), Resampling.LANCZOS)  # Đảm bảo resize đúng
+                self.image_cache[key] = ImageTk.PhotoImage(img)
+            else:
+                self.image_cache[key] = PhotoImage(file=image_path)
         button_positions = {
             "play": (624, 555),
             "previous": (561, 555),
             "next": (687, 555),
             "repeat": (750, 555),
-            "love": (498, 559)
+            "love": (498, 559),
+            "sleeptimer": (810, 555)
         }
         button_callbacks = {
             "play": self.toggle_play,
             "previous": lambda e: self.parent.songs.previous_song(e),
             "next": lambda e: self.parent.songs.next_song(e),
             "repeat": self.toggle_repeat,
-            "love": self.toggle_love
+            "love": self.toggle_love,
+            "sleeptimer": lambda e: self.parent.songs.open_sleep_timer_window()
         }
         self.buttons = {}  # Dictionary để lưu trữ các button nếu cần dùng sau này
         self.love_state = "love(1)"
@@ -378,11 +437,13 @@ class Button(Base):
 
     def show_volume_slider(self):
         """Hiển thị thanh điều chỉnh âm lượng với thiết kế bo tròn"""
+        volume_color = "#9E80AD" if self.parent.mood == "sad" else "#E1CFE3"
+        text_color = "#FFFFFF" if self.parent.mood == "sad" else "#000000"
         if not self.volume_slider:
             self.volume_slider = Scale(
                 self.canvas.master, from_=100, to=0, orient=VERTICAL,
-                length=100,
-                sliderlength=20, width=10, troughcolor="#E9AFE7", bg="#E1CFE3",
+                length=100, sliderlength=20, width=10, troughcolor="#E9AFE7",
+                bg=volume_color, fg=text_color,
                 highlightthickness=0, borderwidth=0, command=self.set_volume
             )
         self.volume_slider.set(self.current_volume)
@@ -463,26 +524,52 @@ class Song(Base):
         self.fixed_canvas.place(x=0, y=522)  # Đặt ở dưới cùng
 
         self.load_songs()
+        self.load_user_songs() # Sau khi đăng nhập tự động load history & favorite song của current user
 
         # Bắt sự kiện khi bài hát kết thúc
         pygame.mixer.music.set_endevent(pygame.USEREVENT)
         self.parent.bind("<Configure>", self.check_song_end)
         self.update_colors = self.parent.update_colors
 
-    def save_to_history(self, song_path, song_id):
+    def load_user_songs(self):
+        """Tải danh sách lịch sử và yêu thích từ users.json và lấy dữ liệu từ songs.json để hiển thị"""
+        user = session.current_user
+        user_history = user.get("history", [])
+        user_favorites = user.get("favorite_songs", [])
+
+        self.favorite_songs = []
+        self.history_list = []
+
+        # Thêm bài hát vào danh sách yêu thích
+        for song_id in user_favorites:
+            if song_id in self.song_data:  # Kiểm tra xem song_id có tồn tại trong songs_data không
+                self.favorite_songs.append(self.song_data[song_id])
+            else:
+                print(f"Bài hát {song_id} không có trong songs.json!")
+
+        # Thêm bài hát vào danh sách lịch sử
+        for song_id in user_history:
+            if song_id in self.song_data:
+                self.history_list.append(self.song_data[song_id])
+            else:
+                print(f"Bài hát {song_id} không có trong songs.json!")
+
+        # Cập nhật hiển thị
+        self.update_favorites_display()
+        self.update_history_display()
+
+
+    def save_to_history(self, song_id):
         """Lưu bài hát vào lịch sử phát"""
         if song_id not in self.song_data:
             print(f"Lỗi: Không tìm thấy song_id {song_id} trong song_data")
             return
-        song_data = self.song_data[song_id]
-        history_entry = {
-            "file": song_path,
-            "title": song_data["title"],
-            "artist": song_data["artist"],
-            "image": song_data["image"],
-        }
-        self.history_list = [entry for entry in self.history_list if entry["title"] != history_entry["title"]]
-        self.history_list.insert(0, history_entry)
+
+        song_file = self.songs_list[self.current_index]
+
+        self.history_list = [entry for entry in self.history_list if entry["audio"] != song_file]
+        self.history_list.insert(0, self.song_data[song_id])
+
         self.update_history_display()
 
     def update_history_display(self):
@@ -493,13 +580,14 @@ class Song(Base):
             title = song["title"]
             artist = song["artist"]
             image_file = song["image"]
+            song_id = song["id"]
             self.create_history_item(100, 100 + index * 50, title, artist,
-                                     image_file)
+                                     image_file, song_id)
         # Cập nhật lại khung cuộn chính xác
         self.history_frame.update_idletasks()
         self.history_canvas.config(scrollregion=self.history_canvas.bbox("all"))
 
-    def create_history_item(self, x, y, title, artist, image_file):
+    def create_history_item(self, x, y, title, artist, image_file, song_id):
         """Tạo một ô bài hát trong khung lịch sử"""
         frame = Frame(self.history_frame, bg="#E1CFE3", padx=10, pady=5)
         frame.pack(fill="x", expand=True)
@@ -517,25 +605,20 @@ class Song(Base):
         title_label.pack(anchor="w")
         artist_label = Label(text_frame, text=artist, font=("Newsreader Regular", 14), fg=text_color, bg="#E1CFE3")
         artist_label.pack(anchor="w")
-        frame.bind("<Button-1>", lambda e, song_title=title: self.play_song_from_history(song_title))
-        img_label.bind("<Button-1>", lambda e, song_title=title: self.play_song_from_history(song_title))
-        title_label.bind("<Button-1>", lambda e, song_title=title: self.play_song_from_history(song_title))
-        artist_label.bind("<Button-1>", lambda e, song_title=title: self.play_song_from_history(song_title))
+        frame.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
+        img_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
+        title_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
+        artist_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
         self.parent.change_widget_colors(frame)
 
-    def play_song_from_history(self, song_title):
+    def play_song_from_history(self, song_id):
         """Phát nhạc khi nhấn vào bài hát trong lịch sử"""
-        song_path = None
-        for history_entry in self.history_list:
-            if history_entry["title"] == song_title:
-                song_path = history_entry["file"]
-                break
-        for song_id, data in self.song_data.items():
-            if data["title"] == song_title:
+        for entry in self.history_list:
+            if entry["id"] == song_id:
                 index = list(self.song_data.keys()).index(song_id)
                 self.play_song(index)
                 self.on_song_click(song_id)
-                self.save_to_history(song_path, song_id)
+                self.save_to_history(song_id)
                 return
 
     def scroll_history(self, *args):
@@ -557,42 +640,90 @@ class Song(Base):
         else:
             self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
+    def update_favorite_songs(self, song_id, action=None):
+        """Cập nhật danh sách favorite_songs của user hiện tại"""
+        user = session.current_user or {}
+        email = user.get("email")
+
+        try:
+            with open("../../data/users.json", "r", encoding="utf-8") as file:
+                users = json.load(file)
+            for user in users:
+                if user["email"] == email:
+                    if action == "add":
+                        if song_id not in user["favorite_songs"]:
+                            user["favorite_songs"].append(song_id)  # Thêm ID bài hát
+                    elif action == "remove":
+                        if song_id in user["favorite_songs"]:
+                            user["favorite_songs"].remove(song_id)  # Xóa ID bài hát
+
+            with open("../../data/users.json", "w", encoding="utf-8") as file:
+                json.dump(users, file, indent=4, ensure_ascii=False)
+                file.flush()
+                return
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Có lỗi xảy ra: {e}")
+
+
+    def update_history_songs(self, song_id):
+        """Cập nhật danh sách history của user hiện tại"""
+        user = session.current_user or {}
+        email = user.get("email")
+
+        try:
+            with open("../../data/users.json", "r", encoding="utf-8") as file:
+                users = json.load(file)
+
+            for user in users:
+                if user["email"] == email:
+                    # Nếu song_id đã có trong history, xóa đi trước khi thêm lại
+                    if song_id in user["history"]:
+                        user["history"].remove(song_id)
+
+                    # Thêm song_id vào đầu danh sách history
+                    user["history"].insert(0, song_id)
+
+                    # Ghi lại file users.json
+            with open("../../data/users.json", "w", encoding="utf-8") as file:
+                json.dump(users, file, indent=4, ensure_ascii=False)
+                file.flush()
+                return
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Có lỗi xảy ra: {e}")
+
+
     def add_to_favorites(self):
         """Lưu bài hát hiện tại vào danh sách yêu thích"""
-        if self.current_index is None or self.current_index >= len(self.songs_list):
+        if self.current_index is None or self.current_index >= len(
+                self.songs_list):
             print("Không có bài hát nào đang phát hoặc index không hợp lệ")
             return
+        song_id = list(self.song_data.keys())[self.current_index]
+        song_file = self.songs_list[self.current_index]
 
-        song_id = list(self.song_data.keys())[self.current_index]  # Lấy song_id
-        song_info = self.song_data[song_id]
-        song_file = self.songs_list[self.current_index]  # Lấy file nhạc từ songs_list
+        self.favorite_songs = [entry for entry in self.favorite_songs if
+                               entry["audio"] != song_file]
+        self.favorite_songs.insert(0, self.song_data[song_id])
 
-        favorite_entry = {
-            "file": song_file,
-            "id": song_id,
-            "title": song_info["title"],
-            "artist": song_info["artist"],
-            "image": song_info["image"],
-        }
-
-        if not hasattr(self, "favorite_songs"):
-            self.favorite_songs = []
-        if favorite_entry not in self.favorite_songs:
-            self.favorite_songs.append(favorite_entry)
-
+        self.update_favorite_songs(song_id, action="add")
         self.update_favorites_display()
 
-    def update_favorites_display(self):
-        """Cập nhật danh sách yêu thích mà không thay đổi màn hình"""
+
+    def update_favorites_display(self, show_ui=False):
+        """Cập nhật hoặc hiển thị danh sách yêu thích"""
+        if show_ui:
+            self.favorites_canvas.place(x=103, y=90)  # Hiển thị danh sách yêu thích
+            self.history_canvas.place_forget()  # Ẩn lịch sử
+            self.canvas.place_forget()  # Ẩn danh sách bài hát chính
+        # Xóa danh sách yêu thích cũ
         for widget in self.favorites_frame.winfo_children():
             widget.destroy()
+        # Tạo lại danh sách yêu thích
         for index, song in enumerate(self.favorite_songs):
-            title = song["title"]
-            artist = song["artist"]
-            image_file = song["image"]
+            self.create_favorite_item(100, 100 + index * 50, song["title"],
+                                      song["artist"], song["image"], song["id"])
 
-            self.create_favorite_item(100, 100 + index * 50, title, artist, image_file)
-
+        # Cập nhật khung cuộn
         self.favorites_frame.update_idletasks()
         self.favorites_canvas.config(scrollregion=self.favorites_canvas.bbox("all"))
 
@@ -603,36 +734,15 @@ class Song(Base):
             return
 
         song_id = list(self.song_data.keys())[self.current_index]
-        for song in self.favorite_songs:
-            if song["id"] == song_id:
-                self.favorite_songs.remove(song)
-                if self.parent.buttons.current_title == "Favorites":
-                    self.show_favorites()
-                else:
-                    self.update_favorites_display()
-                self.update_love_button()
-                return
+        self.favorite_songs = [song for song in self.favorite_songs if
+                               song.get("id") != song_id]
+        self.update_favorite_songs(song_id, action="remove")
+        self.update_favorites_display(
+            show_ui=self.parent.buttons.current_title == "Favorites")
 
-    def show_favorites(self):
-        """Hiển thị danh sách bài hát yêu thích"""
-        self.favorites_canvas.place(x=103, y=90)  # Hiển thị canvas
-        self.history_canvas.place_forget()  # Ẩn lịch sử nếu đang hiển thị
-        self.canvas.place_forget()  # Ẩn danh sách bài hát chính
+        self.update_love_button()
 
-        for widget in self.favorites_frame.winfo_children():
-            widget.destroy()  # Xóa danh sách cũ
-
-        for index, song in enumerate(self.favorite_songs):
-            title = song["title"]
-            artist = song["artist"]
-            image_file = song["image"]
-
-            self.create_favorite_item(100, 100 + index * 50, title, artist, image_file)
-
-        self.favorites_frame.update_idletasks()
-        self.favorites_canvas.config(scrollregion=self.favorites_canvas.bbox("all"))
-
-    def create_favorite_item(self, x, y, title, artist, image_file):
+    def create_favorite_item(self, x, y, title, artist, image_file, song_id):
         """Tạo một ô bài hát trong danh sách yêu thích"""
         frame = Frame(self.favorites_frame, bg="#E1CFE3", padx=10, pady=5)
         frame.pack(fill="x", expand=True)
@@ -646,8 +756,7 @@ class Song(Base):
         text_frame.pack(side="left", fill="x", expand=True)
 
         text_color = "#FFFFFF" if self.parent.mood == "sad" else "#000000"
-        title_label = Label(text_frame, text=title, font=("Coiny Regular",
-                                                          18), fg=text_color, bg="#E1CFE3")
+        title_label = Label(text_frame, text=title, font=("Coiny Regular",18), fg=text_color, bg="#E1CFE3")
         title_label.pack(anchor="w")
 
         artist_label = Label(text_frame, text=artist, font=("Newsreader "
@@ -655,29 +764,26 @@ class Song(Base):
                              fg=text_color, bg="#E1CFE3")
         artist_label.pack(anchor="w")
 
-        frame.bind("<Button-1>", lambda e, song_title=title: self.play_song_from_favorites(song_title))
-        img_label.bind("<Button-1>", lambda e, song_title=title: self.play_song_from_favorites(song_title))
-        title_label.bind("<Button-1>", lambda e, song_title=title: self.play_song_from_favorites(song_title))
-        artist_label.bind("<Button-1>", lambda e, song_title=title: self.play_song_from_favorites(song_title))
+        frame.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
+        img_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
+        title_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
+        artist_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
         self.parent.change_widget_colors(frame)
 
-    def play_song_from_favorites(self, song_title):
+    def play_song_from_favorites(self, song_id):
         """Phát nhạc khi nhấn vào bài hát trong danh sách yêu thích"""
-        favorite_entry = next((entry for entry in self.favorite_songs if entry["title"] == song_title), None)
-
-        song_path = favorite_entry["file"]
-        song_id = favorite_entry["id"]
-
-        if song_path:  # Nếu đã có file nhạc
-            index = self.songs_list.index(
-                song_path) if song_path in self.songs_list else -1
-            if index >= 0:
-                self.play_song(index)
-                self.on_song_click(song_id)
-            else:
-                print("Lỗi: File nhạc không có trong danh sách phát - {song_path}")
-        else:
-            print("Lỗi: Không tìm thấy file nhạc cho bài hát {song_title}")
+        song = None
+        for s in self.favorite_songs:
+            if s["id"] == song_id:
+                song = s
+                break
+        try:
+            index = list(self.song_data.keys()).index(song_id)
+            self.play_song(index)  # Phát bài hát
+            self.on_song_click(song_id)  # Cập nhật giao diện
+            self.add_to_favorites()  # Lưu lại vào danh sách yêu thích để cập nhật vị trí
+        except ValueError:
+            print(f"Lỗi: Không tìm thấy bài hát '{song['title']}' trong danh sách gốc.")
 
     def search_song(self, event=None):
         """Tìm kiếm bài hát theo tiêu đề hoặc ca sĩ"""
@@ -804,7 +910,8 @@ class Song(Base):
             # Gọi hàm cập nhật giao diện bài hát đang phát
             song_id = list(self.song_data.keys())[index]  # Lấy song_id từ danh sách
             self.on_song_click(song_id)  # Cập nhật thông tin bài hát
-            self.save_to_history(song_path, song_id)
+            self.update_history_songs(song_id)
+            self.save_to_history(song_id)
             self.update_love_button()
 
     def update_love_button(self):
@@ -879,31 +986,27 @@ class Song(Base):
     def stop_music(self):
         pygame.mixer.music.stop()
 
-    def create_song(self, key, x1, y1, x2, y2, title, artist, image_file, img_x,
-                    img_y, title_x, title_y, artist_x, artist_y, song_file):
+    def create_song(self, song):
         """Tạo một ô bài hát"""
-        rect_id = self.canvas.create_rectangle(x1, y1, x2, y2, fill="#FFFFFF", outline="")
-        title_id = self.canvas.create_text(title_x, title_y, anchor="nw",
-                                           text=title,
+        key = song["id"]
+        rect_id = self.canvas.create_rectangle(song["x1"], song["y1"], song["x2"], song["y2"], fill="#FFFFFF", outline="")
+        title_id = self.canvas.create_text(song["title_x"], song["title_y"], anchor="nw",
+                                           text=song["title"],
                                            fill="#000000", font=("Coiny Regular", 18 * -1))
-        artist_id = self.canvas.create_text(artist_x, artist_y, anchor="nw",
-                                            text=artist, fill="#000000", font=("Newsreader Regular", 14 * -1))
-        self.image_cache[key] = PhotoImage(file=self.relative_to_assets(image_file))
-        img_id = self.canvas.create_image(img_x, img_y, image=self.image_cache[key])
+        artist_id = self.canvas.create_text(song["artist_x"], song["artist_y"], anchor="nw",
+                                            text=song["artist"], fill="#000000", font=("Newsreader Regular", 14 * -1))
+        self.image_cache[key] = PhotoImage(file=self.relative_to_assets(song["image"]))
+        img_id = self.canvas.create_image(song["image_x"], song["image_y"], image=self.image_cache[key])
         index = len(self.songs_list)  # Lưu index hiện tại
-        self.songs_list.append(song_file)  # Lưu bài hát vào danh sách
+        self.songs_list.append(song["audio"])  # Lưu bài hát vào danh sách
         # Lưu thông tin bài hát vào dictionary
         if not hasattr(self, "song_data"):
             self.song_data = {}
-        self.song_data[key] = {
-            "title": title,
-            "artist": artist,
-            "image": image_file,
-            "index": index
-        }
+        self.song_data[key] = song
+        self.song_data[key]["inndex"] = index
         for item_id in [rect_id, title_id, artist_id, img_id]:
-            self.canvas.tag_bind(item_id, "<Button-1>", lambda e, idx=index, song_id=key: (self.play_song(idx),
-                                                                                           self.on_song_click(song_id)))
+            self.canvas.tag_bind(item_id, "<Button-1>", lambda e, idx=index, song_id=key: (self.play_song(idx), self.on_song_click(song_id)))
+
 
     def on_song_click(self, song_id):
         """Khi click vào bài hát, cập nhật hiển thị thông tin bài hát ở vị trí cố định"""
@@ -926,21 +1029,79 @@ class Song(Base):
 
     def load_songs(self):
         """Load danh sách bài hát từ file JSON"""
-        self.songs_list = []  # Reset danh sách bài hát
-        with open("F:/Final/demo/data/songs.json", "r", encoding="utf-8") as file:
+        self.songs_list = []  # Reset danh sách bài hát, chứa audio
+        with open("../../data/songs.json", "r", encoding="utf-8") as file:
             songs = json.load(file)
 
+        base = Base()
+
         for song in songs:
-            self.create_song(
-                song["id"],
-                song["x1"], song["y1"], song["x2"], song["y2"],
-                song["title"], song["artist"],
-                song["image"],
-                song["image_x"], song["image_y"],
-                song["title_x"], song["title_y"],
-                song["artist_x"], song["artist_y"],
-                song["audio"]
-            )
+            song["audio"] = base.relative_to_assets(song["audio"])
+            self.create_song(song)
+
+
+    def open_sleep_timer_window(self):
+        """Mở cửa sổ Sleep Timer hoặc hiện lại nếu đang ẩn"""
+        if hasattr(self, "sleep_window") and self.sleep_window.winfo_exists():
+            self.sleep_window.deiconify()  # Hiện lại nếu cửa sổ đã tồn tại
+            return
+
+        # Nếu chưa có cửa sổ, tạo mới
+        self.sleep_window = tk.Toplevel(self.parent)
+        self.sleep_window.title("Sleep Timer")
+        self.sleep_window.geometry("300x200")
+        self.sleep_window.configure(bg="#E1CFE3")
+        self.sleep_window.resizable(False, False)
+
+        Label(self.sleep_window, text="Hẹn giờ tắt ứng dụng:", font=("Jua", 14), bg="white").pack(pady=10)
+
+        # Entry nhập số phút
+        self.sleep_timer_entry = tk.Entry(self.sleep_window, font=("Jua", 12), width=10)
+        self.sleep_timer_entry.pack(pady=5)
+        self.sleep_timer_entry.insert(0, "10")  # Mặc định là 10 phút
+
+        # Nút Bắt đầu và Hủy hẹn giờ
+        start_btn = tk.Button(self.sleep_window, text="Bắt đầu", font=("Jua", 12), command=self.start_sleep_timer)
+        start_btn.pack(pady=5)
+
+        stop_btn = tk.Button(self.sleep_window, text="Hủy", font=("Jua", 12), command=self.stop_sleep_timer)
+        stop_btn.pack(pady=5)
+
+        self.sleep_timer_running = False
+
+    def start_sleep_timer(self):
+        """Bắt đầu Sleep Timer"""
+        try:
+            minutes = int(self.sleep_timer_entry.get())  # Lấy số phút từ user nhập
+            self.sleep_time = minutes * 60  # Chuyển đổi thành giây
+            self.sleep_timer_running = True
+            self.sleep_window.withdraw()  # Ẩn cửa sổ thay vì hủy
+
+            # Chạy đếm ngược trong một luồng riêng để không chặn UI
+            self.sleep_thread = threading.Thread(target=self.run_sleep_timer, daemon=True)
+            self.sleep_thread.start()
+            messagebox.showinfo("Sleep Timer", f"Ứng dụng sẽ dừng nhạc sau {minutes} phút.")
+
+        except ValueError:
+            messagebox.showerror("Lỗi", "Vui lòng nhập một số nguyên hợp lệ!")
+
+    def run_sleep_timer(self):
+        """Chạy Sleep Timer, tạm dừng nhạc khi hết giờ"""
+        while self.sleep_time > 0 and self.sleep_timer_running:
+            time.sleep(1)
+            self.sleep_time -= 1
+
+        if self.sleep_timer_running:
+            self.sleep_timer_running = False  # Đánh dấu hẹn giờ đã kết thúc
+            if not self.parent.songs.is_paused:
+                self.parent.songs.pause_song()  # Gọi hàm pause thay vì dừng nhạc
+
+    def stop_sleep_timer(self):
+        """Hủy Sleep Timer"""
+        if hasattr(self, "sleep_window") and self.sleep_window.winfo_exists():
+            self.sleep_window.withdraw()
+
+
 
 
 if __name__ == "__main__":

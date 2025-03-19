@@ -1,9 +1,8 @@
-
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageTk
 
 OUTPUT_PATH = Path(__file__).parent
-ASSETS_PATH = OUTPUT_PATH / Path(r"F:\Final\demo\assets\frame0")
+ASSETS_PATH = OUTPUT_PATH / Path(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0")
 
 
 def relative_to_assets(path: str) -> Path:
@@ -26,8 +25,3 @@ def round_corners( image, radius):
     rounded.paste(image, (0, 0), mask)
     return rounded
 
-# def btn_sad_clicked(event):
-#     print("Button sad clicked")
-#
-# def btn_happy_clicked(event):
-#     print("Button happy clicked")
