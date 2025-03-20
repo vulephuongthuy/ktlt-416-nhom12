@@ -51,14 +51,14 @@ class Profile(Toplevel):
             relief="flat",
             bg="#A352D9",
             fg="white",
-            font=("Jua", 14)
+            font=("Inter Bold", 14)
         )
         self.change_photo_button.place(x=25, y=190, width=110, height=30)
 
-        self.canvas.create_text(230, 25, text="Profile", font=("Inter", 35), fill="white", anchor=NW)
-        self.canvas.create_text(25, 236, text="E-mail", font=("Jua", 25), fill="#A352D9", anchor=NW)
-        self.canvas.create_text(25, 306, text="Username", font=("Jua", 25), fill="#A352D9", anchor=NW)
-        self.canvas.create_text(25, 376, text="Password", font=("Jua", 25), fill="#A352D9", anchor=NW)
+        self.canvas.create_text(215, 25, text="Profile", font=("Inter Bold", 45, "bold"), fill="white", anchor=NW)
+        self.canvas.create_text(25, 236, text="E-mail:", font=("Inter Bold", 23), fill="#A352D9", anchor=NW)
+        self.canvas.create_text(25, 306, text="Username:", font=("Inter Bold", 23), fill="#A352D9", anchor=NW)
+        self.canvas.create_text(25, 376, text="Password:", font=("Inter Bold", 23), fill="#A352D9", anchor=NW)
 
         # Load ảnh nút Update
         self.update_button_image = PhotoImage(file=relative_to_assets("btn_update.png"))
@@ -77,17 +77,20 @@ class Profile(Toplevel):
         username = user.get("username", "Unknown")
         password = user.get("password", "******")
 
-        self.name_entry = CTkEntry(self, font=("Jua", 18), fg_color="white", width=390, height=30, border_width=0, corner_radius=0)
+        self.name_entry = CTkEntry(self, font=("Inter", 20), fg_color="white", width=390, height=30, border_width=0,
+                                   corner_radius=0, text_color="#1E1E1E")
         self.name_entry.insert(0, name)
         self.name_entry.place(x=180, y=150)
 
-        self.canvas.create_text(265, 255, text=email, font=("Jua", 18), fill="black")
+        self.canvas.create_text(265, 255, text=email, font=("Inter", 18), fill="#1E1E1E", anchor=W)
 
-        self.username_entry = CTkEntry(self, font=("Jua", 18), fg_color="white", width=390, height=30, border_width=0, corner_radius=0)
+        self.username_entry = CTkEntry(self, font=("Inter", 20), fg_color="white", width=390, height=30, border_width=0,
+                                       corner_radius=0, text_color="#1E1E1E")
         self.username_entry.insert(0, username)
         self.username_entry.place(x=180, y=310)
 
-        self.password_entry = CTkEntry(self, font=("Jua", 18), fg_color="white", width=390, height=30, border_width=0, corner_radius=0, show="*")
+        self.password_entry = CTkEntry(self, font=("Inter", 20), fg_color="white", width=390, height=30, border_width=0,
+                                       corner_radius=0, show="*", text_color="#1E1E1E")
         self.password_entry.insert(0, password)
         self.password_entry.place(x=180, y=380)
 
@@ -139,7 +142,7 @@ class Profile(Toplevel):
                 path = str(relative_to_assets("profile_default.png"))  # Fallback về ảnh mặc định
 
             img = Image.open(path)
-            img = img.resize((110, 110), Image.LANCZOS)  # Resize ảnh profile
+            img = img.resize((110, 110))  # Resize ảnh profile
             self.profile_photo = ImageTk.PhotoImage(img)
 
             # Xóa ảnh cũ trước khi thêm ảnh mới

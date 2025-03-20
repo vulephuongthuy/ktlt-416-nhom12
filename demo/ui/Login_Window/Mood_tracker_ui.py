@@ -71,5 +71,5 @@ class MoodTrackerUI(Base):
 
 
  
-if __name__ == "__main__":
-    MoodTracker()
+# if __name__ == "__main__":
+#     MoodTracker()

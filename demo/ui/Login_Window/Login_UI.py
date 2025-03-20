@@ -1,7 +1,6 @@
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from tkinter import messagebox
 from customtkinter import CTkEntry, CTkButton
 # from demo.ui.Login_Window import Mood_tracker_ui
 from demo.ui.Login_Window.Mood_tracker_ui import *
@@ -246,7 +245,7 @@ class SignUpForm(Base):
             "email": email,
             "username": username,
             "password": password,
-            "history": [], #
+            "history": [],
             "favorite_songs": [],
             "profile_picture": str(relative_to_assets("profile_default.jpg"))
         }

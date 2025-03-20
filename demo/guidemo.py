@@ -177,6 +177,10 @@ class Button(Base):
 
     def logout(self):
         """Xử lý khi bấm nút Log out"""
+        if hasattr(self.parent, "songs"):
+            self.parent.songs.stop_music()  # Dừng nhạc hoàn toàn
+            pygame.mixer.quit()
+
         try:
             # Lấy cửa sổ chính từ self.parent thay vì self
             root = self.parent.winfo_toplevel() if hasattr(self, "parent") else self.winfo_toplevel()
@@ -1086,5 +1090,5 @@ class Song(Base):
 
 
 
-if __name__ == "__main__":
-    app=MainScreen()
+# if __name__ == "__main__":
+#     app=MainScreen()
