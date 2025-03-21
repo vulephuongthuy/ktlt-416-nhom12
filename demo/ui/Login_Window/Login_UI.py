@@ -4,7 +4,6 @@ from email.mime.text import MIMEText
 from customtkinter import CTkEntry, CTkButton
 # from demo.ui.Login_Window import Mood_tracker_ui
 from demo.ui.Login_Window.Mood_tracker_ui import *
-# from demo.ui.functions import relative_to_assets, reduce_opacity, round_corners
 import json
 import demo.session
 from demo.ui.Login_Window.Mood_tracker_ui import MoodTracker #
@@ -13,18 +12,26 @@ from demo.guidemo import Base
 class LoginScreen(Base):
     def __init__(self, master = None):
         super().__init__()
-        self.window = master if master else Tk()
+        # self.window = master if master else Tk()
+        self.window = master
         self.window.title("Login")
         self.window.geometry("1000x600")
         self.window.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0\logo.ico")
         self.window.configure(bg="white")
         self.window.resizable(False, False)
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
         self.canvas = Canvas(self.window, bg="#FFFFFF", height=600, width=1000, bd=0, highlightthickness=0,
                              relief="ridge")
         self.canvas.place(x=0, y=0)
         self.load_background()
         self.form = LoginForm(self.window, self.canvas)
-        self.window.mainloop()
+        # self.window.mainloop()
+
+    def on_close(self):
+        """Thoát toàn bộ ứng dụng khi đóng LoginScreen"""
+        self.window.quit()  # Dừng vòng lặp Tkinter
+        self.window.destroy()
+        sys.exit()
 
     def load_background(self):
         self.image_cache["bg"] = self.load_image("bg.jpg", opacity=0.7, size=(1020, 623))
@@ -127,9 +134,9 @@ class LoginForm(Base):
         self.new_window = SignUpScreen(master=self.master)  # Truyền LoginScreen làm master
 
     def open_moodtracker(self):
-        if hasattr(self, "mood_tracker") and self.mood_tracker is not None:
-            self.mood_tracker.destroy()
-            self.mood_tracker = None
+        # if hasattr(self, "mood_tracker") and self.mood_tracker is not None:
+        #     self.mood_tracker.destroy()
+        #     self.mood_tracker = None
         self.master.withdraw()  # Ẩn cửa sổ thay vì đóng hoàn toàn
         self.master.after(500, self.start_moodtracker) # Đợi 500ms trước khi mở MoodTracker
 
@@ -147,10 +154,17 @@ class SignUpScreen(Toplevel, Base):
         self.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\demo\assets\frame0\logo.ico")
         self.configure(bg="white")
         self.resizable(False, False)
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.canvas = Canvas(self, bg="#FFFFFF", height=600, width=1000, bd=0, highlightthickness=0, relief="ridge")
         self.canvas.place(x=0, y=0)
         self.load_background()
         self.form = SignUpForm(self, self.canvas)
+
+    def on_close(self):
+        """Dừng nhạc trước khi thoát ứng dụng"""
+        self.destroy() # Đóng cửa sổ
+        self.quit()
+        # sys.exit()
 
     def load_background(self):
         self.image_cache["bg"] = self.load_image("bg.jpg", opacity=0.7, size=(1020, 623))
@@ -255,8 +269,8 @@ class SignUpForm(Base):
         with open("../../data/users.json", "w", encoding="utf-8") as f:
             json.dump(users, f, indent=4, ensure_ascii=False)
         messagebox.showinfo("Success", "User registered successfully!")
-        self.send_welcome_email(email)
         self.go_back()
+        self.send_welcome_email(email)
 
     def send_welcome_email(self, user_email):
         EMAIL_ADDRESS = "thutna23416@st.uel.edu.vn"
@@ -298,4 +312,6 @@ class SignUpForm(Base):
         self.master.master.deiconify()  # ✅ Hiển thị lại LoginScreen
 
 if __name__ == "__main__":
-    LoginScreen()
+    root = Tk()  # Chỉ có một Tk duy nhất
+    app = LoginScreen(master=root)
+    root.mainloop()

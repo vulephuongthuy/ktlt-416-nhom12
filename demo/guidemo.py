@@ -1,5 +1,6 @@
 import json
 import re
+import sys
 import threading
 import time
 import tkinter as tk
@@ -55,9 +56,9 @@ class Base:
         return re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email) is not None
 
 
-class MainScreen(tk.Toplevel):
-    def __init__(self, mood="happy"):
-        super().__init__()
+class MainScreen(Toplevel):
+    def __init__(self, master, mood="happy"):
+        super().__init__(master)
         self.mood = mood
         self.resizable(False, False)
         self.title("Moo_d")
@@ -70,7 +71,7 @@ class MainScreen(tk.Toplevel):
         self.canvas.place(x=0, y=0)
         pygame.mixer.init()
         self.buttons = Button(self, self.canvas, None)
-        self.songs = Song(self, self.buttons)
+        self.songs = Song(self)
         self.buttons.songs = self.songs
         self.buttons.toolbar()
         self.buttons.init_progress_bar()
@@ -80,7 +81,7 @@ class MainScreen(tk.Toplevel):
         self.update_colors()
         self.songs.load_user_songs()
 
-        self.mainloop()
+        # self.mainloop()
 
     def update_colors(self):
         """Cập nhật màu sắc của toàn bộ giao diện."""
@@ -117,9 +118,10 @@ class MainScreen(tk.Toplevel):
     def on_close(self):
         """Dừng nhạc trước khi thoát ứng dụng"""
         self.songs.stop_music()  # Gọi phương thức dừng nhạc từ class Song
-        pygame.mixer.quit()  # Giải phóng tài nguyên pygame
+        pygame.mixer.quit() # Giải phóng tài nguyên pygame
         self.destroy()  # Đóng cửa sổ
-
+        self.master.destroy()
+        sys.exit()
 
 class Button(Base):
     def __init__(self, parent, canvas, song):
@@ -166,6 +168,7 @@ class Button(Base):
         self.canvas.tag_bind(self.image_ids["history"], "<Button-1>", lambda e: self.toggle_view("history"))
         self.canvas.tag_bind(self.image_ids["heart"], "<Button-1>", lambda e: self.toggle_view("favorites"))
         self.canvas.tag_bind(self.image_ids["setting"], "<Button-1>", lambda e: self.showMenu())
+
     def handle_button_press(self, btn_name):
         if btn_name == "Profile":
             Profile(self.parent)
@@ -460,12 +463,12 @@ class Button(Base):
 
 
 class Song(Base):
-    def __init__(self, parent, button):
+    def __init__(self, parent):
         super().__init__()
         self.parent = parent
         self.history_list = []
         self.favorite_songs = []
-        self.button = button
+        # self.button = button
         self.is_paused = False
         self.check_end_id = None
         mixer.init()
@@ -667,7 +670,6 @@ class Song(Base):
                 return
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
-
 
     def update_history_songs(self, song_id):
         """Cập nhật danh sách history của user hiện tại"""
@@ -1007,7 +1009,7 @@ class Song(Base):
         self.current_song_image = ImageTk.PhotoImage(pil_image)  # Lưu để tránh bị xóa bởi garbage collector
         text_color = "#FFFFFF" if self.parent.mood == "sad" else "#000000"
         # Hiển thị ảnh, tiêu đề bài hát và tên nghệ sĩ trên `fixed_canvas`
-        self.fixed_canvas.create_image(20, 5, anchor="nw", image=self.current_song_image)  # Ảnh cố định
+        self.fixed_img=self.fixed_canvas.create_image(20, 5, anchor="nw", image=self.current_song_image)  # Ảnh cố định
         self.fixed_canvas.create_text(104, 27, text=song["title"], fill=text_color, font=("Coiny Regular", 18 * -1),
                                       anchor="w")
         self.fixed_canvas.create_text(104, 50, text=song["artist"], fill=text_color,

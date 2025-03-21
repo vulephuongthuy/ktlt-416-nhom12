@@ -5,7 +5,7 @@ import demo.guidemo
 # from demo.ui.functions import *
 from demo.guidemo import *
 
-class MoodTracker(tk.Toplevel,Base):  # Đảm bảo dùng Toplevel
+class MoodTracker(tk.Toplevel, Base):  # Đảm bảo dùng Toplevel
     def __init__(self, master=None):
         super().__init__(master)
         self.master = master
@@ -15,12 +15,18 @@ class MoodTracker(tk.Toplevel,Base):  # Đảm bảo dùng Toplevel
         self.geometry("1000x600")
         self.configure(bg="white")
         self.resizable(False, False)
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
 
         self.canvas = Canvas(self, bg="#758FC3", height=600, width=1000, bd=0, highlightthickness=0, relief="ridge")
         self.canvas.place(x=0, y=0)
         self.image_cache = {}
         self.load_background()
         MoodTrackerUI(self, self.canvas, self.image_cache)  # Không gọi mainloop() ở đây
+
+    def on_close(self):
+        self.destroy()  # Đóng cửa sổ
+        self.quit()
+        sys.exit()
 
     def load_background(self):
         """ Load nền và các hình ảnh """
@@ -44,12 +50,12 @@ class MoodTracker(tk.Toplevel,Base):  # Đảm bảo dùng Toplevel
     def btn_sad_clicked(self, event):
         """ Mở giao diện nghe nhạc khi chọn 'Sad' """
         self.withdraw()
-        demo.guidemo.MainScreen(mood="sad")
-        demo.guidemo.MainScreen()
+        demo.guidemo.MainScreen(self.master, mood="sad")
+        # demo.guidemo.MainScreen()
 
     def btn_happy_clicked(self, event):
         self.withdraw()
-        demo.guidemo.MainScreen()
+        demo.guidemo.MainScreen(self.master)
 
 
 class MoodTrackerUI(Base):
