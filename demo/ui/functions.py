@@ -17,7 +17,7 @@ def reduce_opacity(image, opacity=1.0):
     return image  # Trả về ảnh đã chỉnh sửa
 
 
-def round_corners( image, radius):
+def round_corners(image, radius):
     rounded = Image.new("RGBA", image.size, (0, 0, 0, 0))
     mask = Image.new("L", image.size, 0)
     draw = ImageDraw.Draw(mask)

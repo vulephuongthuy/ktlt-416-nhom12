@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import sys
 import threading
@@ -134,6 +135,7 @@ class Button(Base):
         self.current_volume = 100  # Mặc định 100 khi mở app
         self.is_playing = False  # Biến kiểm tra trạng thái phát nhạc
         self.is_paused = False
+        self.is_rotating = False
         self.play_button = None
         self.load_icons()
         self.parent.buttons = self
@@ -186,7 +188,7 @@ class Button(Base):
 
         try:
             # Lấy cửa sổ chính từ self.parent thay vì self
-            root = self.parent.winfo_toplevel() if hasattr(self, "parent") else self.winfo_toplevel()
+            root = self.parent.winfo_toplevel() if hasattr(self, "parent") else None
 
             # Đóng cửa sổ chính
             if isinstance(root, tk.Tk) or isinstance(root, tk.Toplevel):
@@ -392,10 +394,18 @@ class Button(Base):
         if pygame.mixer.music.get_busy():  # Nếu đang phát nhạc
             pygame.mixer.music.pause()
             self.is_playing = False
+            self.songs.is_rotating = False
             self.canvas.itemconfig(self.buttons["play"], image=self.image_cache["play"])
         else:  # Nếu nhạc đang tạm dừng hoặc chưa phát
             pygame.mixer.music.unpause()
             self.is_playing = True
+            self.songs.is_rotating = True
+            if self.songs.xoay_dia_id:
+                self.songs.music_canvas.after_cancel(self.songs.xoay_dia_id)
+                self.songs.xoay_dia_id = None
+
+            self.songs.xoay_dia() # Bắt đầu lại việc xoay đĩa
+
             self.canvas.itemconfig(self.buttons["play"], image=self.image_cache["pause"])
 
     def toggle_repeat(self, event=None):
@@ -482,6 +492,20 @@ class Song(Base):
         self.paused_time = 0
         self.start_time = 0
 
+        self.cover_images = []
+        self.song_tags = {}
+        self.disk_ori_xoay = None
+        self.disk_image = None
+        self.is_rotating = False
+        self.goc_xoay = 0
+        self.xoay_dia_id = None
+        self.disk_id = None
+        self.song_name_id = None
+        self.artist_name_id = None
+        self.nextup_items = []
+        self.text_color = "#000000" if self.parent.mood == "happy" else "#FFFFFF"
+        self.secondary_text_color = "#555555" if self.parent.mood == "happy" else "#CCCCCC"
+
         # Canvas lịch sử
         self.history_canvas = Canvas(self.parent, width=844, height=408, bg="#E1CFE3", bd=0, highlightthickness=0)
         self.history_canvas.place(x=103, y=90)
@@ -516,7 +540,7 @@ class Song(Base):
         self.favorites_canvas_window = self.favorites_canvas.create_window((0, 0), window=self.favorites_frame,
                                                                            anchor="nw", width=844)
 
-        # Tạo thanh cuộn cho history_canvas
+        # Tạo thanh cuộn cho favorite_canvas
         self.favorites_scrollbar = Scrollbar(self.parent, orient="vertical", command=self.favorites_canvas.yview)
         self.favorites_scrollbar.place(x=960, y=200, height=200)
         self.favorites_canvas.configure(yscrollcommand=self.favorites_scrollbar.set)
@@ -530,6 +554,34 @@ class Song(Base):
                                    width=266, bd=0, highlightthickness=0)
         self.fixed_canvas.place(x=0, y=522)  # Đặt ở dưới cùng
 
+        # Tạo canvas cho full_player
+        self.music_canvas = Canvas(self.parent, width=1000, height=500, bg="#E1CFE3", bd=0, highlightthickness=0)
+        self.music_canvas.place(x=0, y=0)
+        self.music_canvas.place_forget()  # Ban đầu ẩn
+        self.image_cache["search_bar1"] = self.load_image("white.jpg", size=(230, 25), round_corner=10)
+        self.music_canvas.create_image(810, 35, image=self.image_cache["search_bar1"])
+        self.image_cache["search_icon1"] = self.load_image("search 1.png")
+        self.music_canvas.create_image(680, 36, image=self.image_cache["search_icon1"])
+        self.entry_search = Entry(self.music_canvas, font=("Inter Bold", 12), bg="#FFFFFF", bd=0, fg="black")
+        self.entry_search.place(x=700, y=25, width=220, height=20)
+        self.entry_search.place_forget()
+        self.listbox_results = Listbox(self.music_canvas, font=("Inter Bold", 12), height=5)
+        self.listbox_results.place(x=700, y=50, width=220, height=100)
+        self.listbox_results.place_forget()  # Ẩn ban đầu
+
+        self.logo_img = self.load_image("logo_tron_2.png", size=(45, 45))
+        self.image_cache["logo_full_player"] = self.logo_img
+        self.music_canvas.create_image(960, 35, image=self.image_cache["logo_full_player"], tag="logo_full_player")
+
+        self.music_canvas.bind("<Button-1>", self.hide_listbox)
+        self.entry_search.bind("<FocusOut>", self.hide_listbox)
+        self.entry_search.bind("<FocusIn>", self.show_listbox)
+        self.entry_search.bind("<KeyRelease>", self.search_song_1)
+
+        self.listbox_results.bind("<ButtonRelease-1>", self.play_selected_list_box_song)
+        self.fixed_canvas.bind("<Button-1>", self.toggle_music_player)
+        self.music_canvas.tag_bind("logo_full_player", "<Button-1>", self.hide_music_player)
+
         self.load_songs()
         self.load_user_songs() # Sau khi đăng nhập tự động load history & favorite song của current user
 
@@ -537,6 +589,303 @@ class Song(Base):
         pygame.mixer.music.set_endevent(pygame.USEREVENT)
         self.parent.bind("<Configure>", self.check_song_end)
         self.update_colors = self.parent.update_colors
+
+    def toggle_music_player(self, event=None):
+        """Ẩn/hiện giao diện phát nhạc khi click vào `fixed_canvas`"""
+        if self.music_canvas.winfo_ismapped():
+            # self.music_canvas.delete("all")
+            self.music_canvas.place_forget()
+            self.entry_search.place_forget()
+        else:
+            self.music_canvas.place(x=0, y=0)
+            self.entry_search.place(x=700, y=25, width=220, height=20)
+            self.display_nextup()
+            # self.is_rotating = True
+            if not hasattr(self, "song_name_id") or self.song_name_id is None:
+                self.hien_thi_dia_nhac()
+            self.update_song_image()
+            self.update_song_info()
+
+    def hide_music_player(self, event=None):
+        """Ẩn giao diện phát nhạc khi nhấn logo"""
+        self.music_canvas.place_forget()
+        self.entry_search.place_forget()
+
+    def display_nextup(self):
+        """Hiển thị danh sách Next Up gọn gàng trên music_canvas 1000x500, bên trái"""
+
+        if hasattr(self, "nextup_items"):
+            for item in self.nextup_items:
+                self.music_canvas.delete(item)
+        self.nextup_items = []
+
+        separator_color = "#9E80AD" if self.parent.mood == "happy" else "#E1CFE3"
+
+        # Thêm thanh phân cách dọc giữa Next Up và đĩa nhạc
+        separator_line = self.music_canvas.create_line(
+            333, 30, 333, 500, fill=separator_color, width=1
+        )
+        self.nextup_items.append(separator_line)
+
+        song_ids = list(self.song_data.keys())
+
+        songs_display = [
+            self.song_data[song_ids[(self.current_index + i + 1) % len(song_ids)]]
+            for i in range(4)
+        ]
+
+        self.cover_images.clear()
+        self.song_tags = {}
+
+        nextup_title = self.music_canvas.create_text(
+            30, 10, text="Next Up", font=("Coiny", 16, "bold"), fill="black", anchor="nw"
+        )
+        self.nextup_items.append(nextup_title)
+
+        x_offset_image = 30
+        x_offset_text = 150
+        y_offset = 50 # bắt đầu từ 20px từ trên
+
+        for song in songs_display:
+            try:
+                cover_img = Image.open(relative_to_assets(song["image"])).resize((100, 100))
+                cover_photo = ImageTk.PhotoImage(cover_img)
+                self.cover_images.append(cover_photo)
+
+                cover_id = self.music_canvas.create_image(
+                    x_offset_image, y_offset, anchor="nw", image=cover_photo
+                )
+
+                name_id = self.music_canvas.create_text(
+                    x_offset_text, y_offset + 10, text=song["title"],
+                    font=("Coiny", 13, "bold"), fill=self.text_color, anchor="nw"
+                )
+
+                artist_id = self.music_canvas.create_text(
+                    x_offset_text, y_offset + 35, text=f"Artist: {song['artist']}",
+                    font=("Newsreader", 10), fill=self.secondary_text_color, anchor="nw"
+                )
+
+                try:
+                    duration_str = self.get_mp3_duration(relative_to_assets(song["audio"]))
+                except:
+                    duration_str = "0:00"
+
+                duration_id = self.music_canvas.create_text(
+                    x_offset_text, y_offset + 60, text=f"Duration: {duration_str}",
+                    font=("Newsreader", 10), fill=self.secondary_text_color, anchor="nw"
+                )
+
+                # Tìm index trong self.songs_list
+                song_audio_path = str(relative_to_assets(song["audio"]))
+                song_index = -1
+                for i, path in enumerate(self.songs_list):
+                    if os.path.basename(str(path)) == os.path.basename(song_audio_path):
+                        song_index = i
+                        break
+
+                        # Lưu cả bài hát và index vào self.song_tags
+                for tag_id in [cover_id, name_id, artist_id, duration_id]:
+                    self.song_tags[tag_id] = {
+                    "song": song,
+                    "index": song_index
+                    }
+
+                self.nextup_items.extend([cover_id, name_id, artist_id, duration_id])
+
+                for tag_id in [cover_id, name_id, artist_id, duration_id]:
+                    self.song_tags[tag_id] = song
+                    self.music_canvas.tag_bind(tag_id, "<Button-1>", self.play_selected_song)
+
+                y_offset += 110  # dịch xuống mỗi bài 120px
+
+            except Exception as e:
+                print(f"Lỗi khi tải ảnh {song['image']}: {e}")
+
+    def hien_thi_dia_nhac(self):
+        """Hàm hiển thị ảnh đĩa nhạc lên giao diện"""
+
+        # Mở và resize ảnh đĩa nhạc
+        disk_path = relative_to_assets("Disc_2.png")
+        disk_img = Image.open(disk_path).resize((250, 250))
+        self.disk_image = ImageTk.PhotoImage(disk_img)
+
+        # Hiển thị đĩa nhạc
+        self.disk_id = self.music_canvas.create_image(499, 120, image=self.disk_image, anchor="nw")
+        # Hiển thị tên bài hát và nghệ sĩ từ current_index
+        song_id = list(self.song_data.keys())[self.current_index]
+        self.current_song = self.song_data[song_id]
+
+        if not hasattr(self, "song_name_id") or self.song_name_id is None:
+            self.song_name_id = self.music_canvas.create_text(
+                624, 430, anchor="center",
+                text=self.current_song["Full_title"],
+                font=("Coiny Regular", 26, "bold"),
+                fill=self.text_color
+            )
+
+        if not hasattr(self, "artist_name_id") or self.artist_name_id is None:
+            self.artist_name_id = self.music_canvas.create_text(
+                624, 465, anchor="center",
+                text=self.current_song["Full_artist"],
+                font=("Newsreader Regular", 18),
+                fill=self.secondary_text_color
+            )
+
+    def update_song_image(self):
+        """Cập nhật ảnh bài hát lên đĩa nhạc mà không che mất viền"""
+        # Mở ảnh đĩa nhạc gốc
+        disk_img = Image.open(relative_to_assets("Disc_2.png")).resize((250, 250)).convert("RGBA")
+
+        # Lấy đường dẫn ảnh bài hát từ JSON
+        song_id = list(self.song_data.keys())[self.current_index]
+        song_path = relative_to_assets(self.song_data[song_id]["image"])
+
+        # Mở ảnh bài hát và resize
+        song_img = Image.open(song_path).resize((250, 250)).convert("RGBA")
+
+        # Tạo mặt nạ tròn
+        mask = Image.new("L", (250, 250), 0)
+        draw = ImageDraw.Draw(mask)
+        draw.ellipse((0, 0, 250, 250), fill=255)  # Vòng ngoài
+        draw.ellipse((100, 100, 150, 150), fill=0)  # Lỗ tròn giữa
+
+        # Áp dụng mặt nạ lên ảnh bài hát
+        song_img.putalpha(mask)
+
+        # Dán ảnh bài hát lên đĩa
+        disk_img.paste(song_img, (0, 0), song_img)
+
+        # Lưu ảnh đã gộp để xoay sau này
+        self.disk_ori_xoay = disk_img.copy()
+
+        # Hiển thị ảnh trên canvas
+        self.disk_image = ImageTk.PhotoImage(disk_img)
+        self.music_canvas.itemconfig(self.disk_id, image=self.disk_image)
+
+    def update_song_info(self):
+        """Cập nhật thông tin bài hát đang phát"""
+
+        # Lấy ID bài hát đang phát
+        song_id = list(self.song_data.keys())[self.current_index]
+        self.current_song = self.song_data[song_id]
+
+        # Nếu ID bị mất sau khi ẩn canvas, tạo lại text
+        if self.song_name_id is None:
+            self.song_name_id = self.music_canvas.create_text(
+                624, 430, text=self.current_song["Full_title"],
+                font=("Coiny Regular", 26, "bold"), fill=self.text_color
+            )
+        else:
+            self.music_canvas.itemconfig(self.song_name_id, text=self.current_song["Full_title"])
+
+        if self.artist_name_id is None:
+            self.artist_name_id = self.music_canvas.create_text(
+                624, 465, text=self.current_song["Full_artist"],
+                font=("Newsreader Regular", 18), fill=self.secondary_text_color
+            )
+        else:
+            self.music_canvas.itemconfig(self.artist_name_id, text=self.current_song["Full_artist"])
+    def xoay_dia(self):
+        if not self.is_rotating:
+            return  # Nếu không xoay thì dừng luôn
+
+        # Xoay ảnh đã gộp (đĩa + bài hát)
+        rotated_disk = self.disk_ori_xoay.rotate(self.goc_xoay, resample=Image.BICUBIC)
+
+        # Chuyển thành PhotoImage để hiển thị trên giao diện
+        self.disk_image = ImageTk.PhotoImage(rotated_disk)
+        self.music_canvas.itemconfig(self.disk_id, image=self.disk_image)
+
+        self.goc_xoay = (self.goc_xoay - 1) % 360  # Xoay ngược chiều kim đồng hồ
+
+        # Gọi lại hàm sau 50ms để tiếp tục xoay
+        self.xoay_dia_id = self.music_canvas.after(50, self.xoay_dia)
+
+    def play_selected_song(self, event):
+        """Phát bài hát khi click vào Next Up"""
+        clicked_id = event.widget.find_withtag("current")
+        if not clicked_id:
+            return
+
+        data = self.song_tags.get(clicked_id[0])
+        if not data:
+            return
+
+        index = data["index"]
+        if index == -1:
+            print("Không tìm thấy bài hát trong danh sách phát.")
+            return
+
+        self.play_song(index)
+
+
+    def play_selected_list_box_song(self, event):
+        """Phát bài hát khi chọn từ Listbox"""
+        selected_index = self.listbox_results.curselection()
+        if not selected_index:
+            return
+
+        selected_song_name = self.listbox_results.get(selected_index[0])
+
+        # Tìm bài hát trong danh sách
+        for song_id, song in self.song_data.items():
+            if song["title"] == selected_song_name:
+                self.current_index = int(song["index"])
+                break
+        else:
+            print("Không tìm thấy bài hát trong danh sách!")
+            return
+
+        # Phát bài hát mới
+        self.play_song(self.current_index)
+        self.listbox_results.place_forget()
+
+    def search_song_1(self, event):
+        """Tìm kiếm bài hát và hiển thị trong Listbox"""
+        search_query = self.entry_search.get().strip().lower()  # Lấy nội dung tìm kiếm
+        self.listbox_results.delete(0, END)  # Xóa kết quả cũ trong Listbox
+
+        if not search_query:
+            self.listbox_results.place_forget()  # Ẩn Listbox nếu không có dữ liệu
+            return
+
+        results = []  # Danh sách bài hát phù hợp
+
+        # Tìm bài hát có tên chứa từ khóa tìm kiếm
+        for song_id, song in self.song_data.items():  # Lấy cả key và value
+            if search_query in song["title"].lower():
+                results.append(song["title"])
+
+        if results:
+            for song_name in results:
+                self.listbox_results.insert(END, song_name)  # Thêm bài hát vào Listbox
+            self.listbox_results.place(x=700, y=50, width=220, height=100)  # Hiển thị Listbox
+        else:
+            self.listbox_results.place_forget()  # Ẩn Listbox nếu không có kết quả
+
+    def show_listbox(self, event):
+        """Hiện Listbox khi nhấn vào ô tìm kiếm"""
+        self.listbox_results.place(x=700, y=50, width=220, height=100)
+
+    def hide_listbox(self, event):
+        """Ẩn Listbox khi click ra ngoài và Listbox rỗng"""
+        # Nếu click không vào entry_search và listbox rỗng, thì ẩn
+        if event.widget != self.entry_search and self.listbox_results.size() == 0:
+            self.listbox_results.place_forget()
+            self.music_canvas.focus()
+
+    def get_mp3_duration(self,file_path):
+        """Lấy thời lượng thực tế của file MP3"""
+        try:
+            audio = MP3(file_path)
+            duration_seconds = int(audio.info.length)  # Lấy số giây
+            minutes = duration_seconds // 60
+            seconds = duration_seconds % 60
+            return f"{minutes}:{seconds:02d}"  # Định dạng mm:ss
+        except Exception as e:
+            print("Lỗi khi đọc file MP3:", e)
+            return "0:00"  # Trả về giá trị mặc định nếu có lỗi
 
     def load_user_songs(self):
         """Tải danh sách lịch sử và yêu thích từ users.json và lấy dữ liệu từ songs.json để hiển thị"""
@@ -920,6 +1269,17 @@ class Song(Base):
             self.save_to_history(song_id)
             self.update_love_button()
 
+            if self.xoay_dia_id:
+                self.music_canvas.after_cancel(self.xoay_dia_id)
+                self.xoay_dia_id = None
+            self.is_rotating = True
+            self.goc_xoay=0
+            self.hien_thi_dia_nhac()
+            self.update_song_image()
+            self.update_song_info()
+            self.display_nextup()
+            self.xoay_dia()
+
     def update_love_button(self):
         """Cập nhật trạng thái nút love khi chuyển bài"""
         if self.current_index is None:
@@ -939,6 +1299,9 @@ class Song(Base):
         if self.is_paused:
             pygame.mixer.music.unpause()
             self.is_paused = False
+            self.is_rotating = True
+            if not self.xoay_dia_id:
+                self.xoay_dia()
             # Nếu bài hát đã kết thúc, không cập nhật start_time nữa
             if pygame.mixer.music.get_busy():
                 self.start_time = time.time() - self.paused_time
@@ -952,6 +1315,10 @@ class Song(Base):
         else:
             pygame.mixer.music.pause()
             self.is_paused = True
+            self.is_rotating = False
+            if self.xoay_dia_id:
+                self.music_canvas.after_cancel(self.xoay_dia_id)
+                self.xoay_dia_id = None
             self.paused_time = pygame.mixer.music.get_pos() / 1000
 
             self.parent.buttons.canvas.itemconfig(
@@ -991,7 +1358,7 @@ class Song(Base):
         if not hasattr(self, "song_data"):
             self.song_data = {}
         self.song_data[key] = song
-        self.song_data[key]["inndex"] = index
+        self.song_data[key]["index"] = index
         for item_id in [rect_id, title_id, artist_id, img_id]:
             self.canvas.tag_bind(item_id, "<Button-1>", lambda e, idx=index, song_id=key: (self.play_song(idx), self.on_song_click(song_id)))
 
