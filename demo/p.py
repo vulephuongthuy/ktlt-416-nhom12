@@ -3,10 +3,8 @@ import shutil
 from pathlib import Path
 from tkinter import *
 from tkinter import messagebox, filedialog
-
 from PIL import Image, ImageTk
 from customtkinter import CTkEntry
-
 import demo.session
 
 OUTPUT_PATH = Path(__file__).parent
@@ -159,8 +157,7 @@ class Profile(Toplevel):
         file_path = filedialog.askopenfilename(
             title="Chọn ảnh",
             filetypes=[("Ảnh PNG", "*.png"), ("Ảnh JPG", "*.jpg"), ("Ảnh JPEG", "*.jpeg"),
-                       ("Tất cả ảnh", "*.png;*.jpg;*.jpeg")]
-        )
+                       ("Tất cả ảnh", "*.png;*.jpg;*.jpeg")])
 
         if file_path:
             # Lưu ảnh vào thư mục profile_pictures

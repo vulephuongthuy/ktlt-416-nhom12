@@ -1,8 +1,5 @@
-# from tkinter import Tk, Canvas, Toplevel
-# from PIL import Image, ImageTk
 
 import demo.guidemo
-# from demo.ui.functions import *
 from demo.guidemo import *
 
 class MoodTracker(tk.Toplevel, Base):  # Đảm bảo dùng Toplevel
@@ -51,7 +48,6 @@ class MoodTracker(tk.Toplevel, Base):  # Đảm bảo dùng Toplevel
         """ Mở giao diện nghe nhạc khi chọn 'Sad' """
         self.withdraw()
         demo.guidemo.MainScreen(self.master, mood="sad")
-        # demo.guidemo.MainScreen()
 
     def btn_happy_clicked(self, event):
         self.withdraw()
@@ -76,6 +72,3 @@ class MoodTrackerUI(Base):
         self.canvas.create_text(610, 220, anchor="center", text="Sad", fill="#A061C5",font=("Inter Bold", 35*-1, "bold"))
 
 
- 
-# if __name__ == "__main__":
-#     MoodTracker()

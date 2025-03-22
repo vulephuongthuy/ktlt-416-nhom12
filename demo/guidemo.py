@@ -4,19 +4,13 @@ import sys
 import threading
 import time
 import tkinter as tk
-# from pathlib import Path
-
 from tkinter import *
-# Explicit imports to satisfy Flake8
 from tkinter import Canvas, PhotoImage, Scrollbar, Scale, Frame, Label, Menu, Entry, messagebox
 from tkinter.constants import VERTICAL
-
 import pygame
-# from PIL import Image, ImageDraw, ImageTk
 from PIL.Image import Resampling
 from mutagen.mp3 import MP3
 from pygame import mixer
-
 from demo import session
 from demo.ui.functions import *
 from demo.p import Profile
@@ -81,7 +75,6 @@ class MainScreen(Toplevel):
         self.update_colors()
         self.songs.load_user_songs()
 
-        # self.mainloop()
 
     def update_colors(self):
         """Cập nhật màu sắc của toàn bộ giao diện."""
@@ -476,7 +469,6 @@ class Song(Base):
         self.is_playing = False
         self.repeat_mode = 0  # 0: No Repeat, 1: Repeat One, 2: Repeat Always
         self.repeat_once_flag = False
-
         self.current_time = 0
         self.total_time = 0
         self.paused_time = 0
@@ -1089,8 +1081,3 @@ class Song(Base):
         if hasattr(self, "sleep_window") and self.sleep_window.winfo_exists():
             self.sleep_window.withdraw()
 
-
-
-
-# if __name__ == "__main__":
-#     app=MainScreen()
