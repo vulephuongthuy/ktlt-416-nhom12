@@ -2,7 +2,6 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from customtkinter import CTkEntry, CTkButton
-# from demo.ui.Login_Window import Mood_tracker_ui
 from demo.ui.Login_Window.Mood_tracker_ui import *
 import json
 import demo.session
@@ -12,7 +11,6 @@ from demo.guidemo import Base
 class LoginScreen(Base):
     def __init__(self, master = None):
         super().__init__()
-        # self.window = master if master else Tk()
         self.window = master
         self.window.title("Login")
         self.window.geometry("1000x600")
@@ -25,7 +23,6 @@ class LoginScreen(Base):
         self.canvas.place(x=0, y=0)
         self.load_background()
         self.form = LoginForm(self.window, self.canvas)
-        # self.window.mainloop()
 
     def on_close(self):
         """Thoát toàn bộ ứng dụng khi đóng LoginScreen"""
@@ -134,16 +131,12 @@ class LoginForm(Base):
         self.new_window = SignUpScreen(master=self.master)  # Truyền LoginScreen làm master
 
     def open_moodtracker(self):
-        # if hasattr(self, "mood_tracker") and self.mood_tracker is not None:
-        #     self.mood_tracker.destroy()
-        #     self.mood_tracker = None
         self.master.withdraw()  # Ẩn cửa sổ thay vì đóng hoàn toàn
         self.master.after(500, self.start_moodtracker) # Đợi 500ms trước khi mở MoodTracker
 
     def start_moodtracker(self):
         """Mở giao diện MoodTracker"""
         self.mood_tracker = MoodTracker(self.master)  # Truyền cửa sổ gốc vào MoodTracker
-
 
 class SignUpScreen(Toplevel, Base):
     def __init__(self, master = None):
@@ -164,7 +157,6 @@ class SignUpScreen(Toplevel, Base):
         """Dừng nhạc trước khi thoát ứng dụng"""
         self.destroy() # Đóng cửa sổ
         self.quit()
-        # sys.exit()
 
     def load_background(self):
         self.image_cache["bg"] = self.load_image("bg.jpg", opacity=0.7, size=(1020, 623))
@@ -309,7 +301,7 @@ class SignUpForm(Base):
 
     def go_back(self):
         self.master.destroy()
-        self.master.master.deiconify()  # ✅ Hiển thị lại LoginScreen
+        self.master.master.deiconify()  # Hiển thị lại LoginScreen
 
 if __name__ == "__main__":
     root = Tk()  # Chỉ có một Tk duy nhất
