@@ -1,0 +1,53 @@
+[
+    {
+        "name": "meomeo",
+        "email": "thaodp23416@st.uel.edu.vn",
+        "username": "yuedang",
+        "password": "111111",
+        "history": [
+            "song13",
+            "song12",
+            "song8",
+            "song4",
+            "song17",
+            "song15",
+            "song14",
+            "song11",
+            "song10",
+            "song9",
+            "song1",
+            "song7",
+            "song6",
+            "song5",
+            "song3",
+            "song2",
+            "song20",
+            "song19",
+            "song16"
+        ],
+        "favorite_songs": [
+            "song16",
+            "song12",
+            "song1"
+        ],
+        "profile_picture": "D:\\HKII_NAM2\\KTLT\\ktlt-416-nhom12\\moo_d\\profile_pictures\\thaodp23416_st_uel_edu_vn.png"
+    },
+    {
+        "name": "Thuy Vu",
+        "email": "thuyvlp23416@st.uel.edu.vn",
+        "username": "MinaVu",
+        "password": "123456",
+        "history": [
+            "song20",
+            "song1",
+            "song9",
+            "song3",
+            "song2",
+            "song4"
+        ],
+        "favorite_songs": [
+            "song4"
+        ],
+        "profile_picture": "D:\\HKII_NAM2\\KTLT\\ktlt-416-nhom12\\moo_d\\profile_pictures\\thuyvlp23416_st_uel_edu_vn.png"
+    }
+]
