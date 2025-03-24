@@ -1,17 +1,16 @@
 import smtplib
+import moo_d.session
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from customtkinter import CTkEntry, CTkButton
 from moo_d.ui.Mood_tracker_ui import *
-import json
-import moo_d.session
 from moo_d.ui.Mood_tracker_ui import MoodTracker #
 from moo_d.ui.Main_Screen import Base
 
 class LoginScreen(Base):
     def __init__(self, master = None):
         super().__init__()
-        self.window = master
+        self.window = master if master else Tk()
         self.window.title("Login")
         self.window.geometry("1000x600")
         self.window.iconbitmap(relative_to_assets("logo.ico"))
@@ -21,7 +20,7 @@ class LoginScreen(Base):
         self.canvas = Canvas(self.window, bg="#FFFFFF", height=600, width=1000, bd=0, highlightthickness=0,
                              relief="ridge")
         self.canvas.place(x=0, y=0)
-        self.load_background()
+        self.load_background(self.canvas)
         self.form = LoginForm(self.window, self.canvas)
 
     def on_close(self):
@@ -30,31 +29,19 @@ class LoginScreen(Base):
         self.window.destroy()
         sys.exit()
 
-    def load_background(self):
-        self.image_cache["bg"] = self.load_image("bg.jpg", opacity=0.7, size=(1020, 623))
-        self.image_cache["white_box"] = self.load_image("white.jpg", opacity=0.4, size=(650, 600), round_corner=20)
-        self.image_cache["note"] = self.load_image("3dnote.png", rotate=15)
-        self.image_cache["heart"] = self.load_image("3dheart.png")
-        self.image_cache["star"] = self.load_image("3dstar.png")
-        self.image_cache["hp"] = self.load_image("3dhp.png", rotate=-20)
-        self.image_cache["note2"] = self.load_image("3dnote.png", rotate=-20)
-
-        self.canvas.create_image(500, 300, image=self.image_cache["bg"])
-        self.canvas.create_image(690, 300, image=self.image_cache["white_box"])
-        self.canvas.create_image(160, 200, image=self.image_cache["note"])
-        self.canvas.create_image(350, 180, image=self.image_cache["heart"])
-        self.canvas.create_image(130, 400, image=self.image_cache["star"])
-        self.canvas.create_image(260, 330, image=self.image_cache["hp"])
-        self.canvas.create_image(350, 460, image=self.image_cache["note2"])
-
-
 class LoginForm(Base):
     def __init__(self, master, canvas):
         super().__init__()
         self.master = master
         self.canvas = canvas
-        self.create_widgets()
 
+        self.username_entry = None
+        self.password_entry = None
+        self.signin_button = None
+        self.new_window = None
+        self.mood_tracker = None
+
+        self.create_widgets()
     def create_widgets(self):
         self.canvas.create_text(460, 70, anchor="nw", text="Welcome!", fill="#F09D9D", font=("Inter Bold", 50, "bold"))
         self.canvas.create_text(525, 170, text="Username:", font=("Inter", 16), fill="#F09D9D", anchor="w")
@@ -109,7 +96,7 @@ class LoginForm(Base):
         password = self.password_entry.get().strip()
 
         try:
-            with open("data/users.json", "r") as file:
+            with open("data/users.json", "r", encoding="utf-8") as file:
                 users = json.load(file)
         except FileNotFoundError:
             messagebox.showerror("Error", "User data not found.")
@@ -150,7 +137,7 @@ class SignUpScreen(Toplevel, Base):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.canvas = Canvas(self, bg="#FFFFFF", height=600, width=1000, bd=0, highlightthickness=0, relief="ridge")
         self.canvas.place(x=0, y=0)
-        self.load_background()
+        self.load_background(self.canvas)
         self.form = SignUpForm(self, self.canvas)
 
     def on_close(self):
@@ -158,27 +145,18 @@ class SignUpScreen(Toplevel, Base):
         self.destroy() # Đóng cửa sổ
         self.quit()
 
-    def load_background(self):
-        self.image_cache["bg"] = self.load_image("bg.jpg", opacity=0.7, size=(1020, 623))
-        self.image_cache["white_box"] = self.load_image("white.jpg", opacity=0.4, size=(650, 600), round_corner=20)
-        self.image_cache["note"] = self.load_image("3dnote.png", rotate=15)
-        self.image_cache["heart"] = self.load_image("3dheart.png")
-        self.image_cache["star"] = self.load_image("3dstar.png")
-        self.image_cache["hp"] = self.load_image("3dhp.png", rotate=-20)
-        self.image_cache["note2"] = self.load_image("3dnote.png", rotate=-20)
-        self.canvas.create_image(500, 300, image=self.image_cache["bg"])
-        self.canvas.create_image(690, 300, image=self.image_cache["white_box"])
-        self.canvas.create_image(160, 200, image=self.image_cache["note"])
-        self.canvas.create_image(350, 180, image=self.image_cache["heart"])
-        self.canvas.create_image(130, 400, image=self.image_cache["star"])
-        self.canvas.create_image(260, 330, image=self.image_cache["hp"])
-        self.canvas.create_image(350, 460, image=self.image_cache["note2"])
-
 class SignUpForm(Base):
     def __init__(self, master, canvas):
         super().__init__()
         self.master = master
         self.canvas = canvas
+
+        self.name_entry = None
+        self.email_entry = None
+        self.username_entry = None
+        self.password_entry = None
+        self.signup_button = None
+        self.back_button = None
         self.create_widgets()
 
     def create_widgets(self):
@@ -258,18 +236,19 @@ class SignUpForm(Base):
         users.append(new_user)
 
         # Lưu danh sách mới vào file JSON
-        with open("data/users.json", "w", encoding="utf-8") as file:
-            json.dump(users, file, indent=4, ensure_ascii=False)
+        with open("data/users.json", "w", encoding="utf-8") as f:
+            json.dump(users, f, indent=4, ensure_ascii=False)
         messagebox.showinfo("Success", "User registered successfully!")
         self.go_back()
         self.send_welcome_email(email)
 
-    def send_welcome_email(self, user_email):
-        EMAIL_ADDRESS = "thutna23416@st.uel.edu.vn"
-        APP_PASSWORD = "wyas ubap nhqv wwap"
+    @staticmethod
+    def send_welcome_email(user_email):
+        email_address = "thutna23416@st.uel.edu.vn"
+        app_password = "wyas ubap nhqv wwap"
 
         msg = MIMEMultipart()
-        msg["From"] = EMAIL_ADDRESS
+        msg["From"] = email_address
         msg["To"] = user_email
         msg["Subject"] = "Welcome to Moo_d!"
 
@@ -291,8 +270,8 @@ class SignUpForm(Base):
 
         try:
             with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-                server.login(EMAIL_ADDRESS, APP_PASSWORD)
-                server.sendmail(EMAIL_ADDRESS, user_email, msg.as_string())
+                server.login(email_address, app_password)
+                server.sendmail(email_address, user_email, msg.as_string())
         except smtplib.SMTPAuthenticationError as e:
             messagebox.showerror("Lỗi", f"Không thể xác thực tài khoản Gmail. Vui lòng kiểm tra mật khẩu ứng dụng. {e}")
         except Exception as e:

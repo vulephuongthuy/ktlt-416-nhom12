@@ -23,7 +23,8 @@ class Base:
         super().__init__()
         self.image_cache = {} # Lưu trữ hình ảnh để tránh bị xóa bởi garbage collector
 
-    def load_image(self, path, opacity=None, size=None, rotate=None, round_corner=None):
+    @staticmethod
+    def load_image(path, opacity=None, size=None, rotate=None, round_corner=None):
         try:
             img = Image.open(relative_to_assets(path))
             if opacity is not None:
@@ -38,12 +39,31 @@ class Base:
         except FileNotFoundError:
             print(f"Không tìm thấy ảnh: {path}")
             return None
+    def load_background(self, canvas):
+        """Tải ảnh nền chung cho giao diện"""
+        self.image_cache["bg"] = self.load_image("bg.jpg", opacity=0.7, size=(1020, 623))
+        self.image_cache["white_box"] = self.load_image("white.jpg", opacity=0.4, size=(650, 600), round_corner=20)
+        self.image_cache["note"] = self.load_image("3dnote.png", rotate=15)
+        self.image_cache["heart"] = self.load_image("3dheart.png")
+        self.image_cache["star"] = self.load_image("3dstar.png")
+        self.image_cache["hp"] = self.load_image("3dhp.png", rotate=-20)
+        self.image_cache["note2"] = self.load_image("3dnote.png", rotate=-20)
 
-    def is_valid_username(self, username):
+        canvas.create_image(500, 300, image=self.image_cache["bg"])
+        canvas.create_image(690, 300, image=self.image_cache["white_box"])
+        canvas.create_image(160, 200, image=self.image_cache["note"])
+        canvas.create_image(350, 180, image=self.image_cache["heart"])
+        canvas.create_image(130, 400, image=self.image_cache["star"])
+        canvas.create_image(260, 330, image=self.image_cache["hp"])
+        canvas.create_image(350, 460, image=self.image_cache["note2"])
+
+    @staticmethod
+    def is_valid_username(username):
         """Kiểm tra username chỉ chứa chữ cái, số, dấu gạch dưới (_), tối thiểu 3 ký tự."""
         return re.match(r"^[a-zA-Z0-9_]{3,}$", username) is not None
 
-    def is_valid_email(self, email):
+    @staticmethod
+    def is_valid_email(email):
         """Kiểm tra định dạng email hợp lệ."""
         return re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email) is not None
 
@@ -127,6 +147,12 @@ class Button(Base):
         self.is_paused = False
         self.is_rotating = False
         self.play_button = None
+        self.search_entry = None
+        self.volume_icon = None
+        self.profile_window = None
+        self.image_ids = {}
+        self.buttons = {}  # Dictionary để lưu trữ các button nếu cần dùng sau này
+        self.love_state = "love(0)"
         self.load_icons()
         self.parent.buttons = self
         self.progress_bg = None
@@ -149,7 +175,7 @@ class Button(Base):
             "history": ("history 1.png", 50, 332),
             "setting": ("settings 1.png", 50, 393),
         }
-        self.image_ids = {}
+
         for key, (file_name, x, y) in image_files.items():
             self.image_cache[key] = PhotoImage(
                 file=relative_to_assets(file_name))
@@ -159,13 +185,13 @@ class Button(Base):
         self.canvas.tag_bind(self.image_ids["home"], "<Button-1>", lambda e: self.toggle_view("home"))
         self.canvas.tag_bind(self.image_ids["history"], "<Button-1>", lambda e: self.toggle_view("history"))
         self.canvas.tag_bind(self.image_ids["heart"], "<Button-1>", lambda e: self.toggle_view("favorites"))
-        self.canvas.tag_bind(self.image_ids["setting"], "<Button-1>", lambda e: self.showMenu())
+        self.canvas.tag_bind(self.image_ids["setting"], "<Button-1>", lambda e: self.show_menu())
 
     def handle_button_press(self, btn_name):
         if btn_name == "Profile":
             Profile(self.parent)
 
-    def showMenu(self, event=None):
+    def show_menu(self):
         x = self.parent.winfo_pointerx()
         y = self.parent.winfo_pointery() + 50
         self.menu.post(x, y)
@@ -187,13 +213,14 @@ class Button(Base):
                 print("Không thể đóng cửa sổ chính!")
         except Exception as e:
             print(f"Lỗi khi đóng cửa sổ chính: {e}")
-        self.parent.after(100, self.open_loginUI)
+        self.parent.after(100, self.open_login)
 
-    def open_loginUI(self):
+    @staticmethod
+    def open_login():
         """Mở lại màn hình đăng nhập"""
         from moo_d.ui.Login_UI import LoginScreen
         root = tk.Toplevel()
-        login_screen = LoginScreen(master=root)
+        LoginScreen(master=root)
 
     def create_title(self):
         """Tạo hoặc cập nhật tiêu đề"""
@@ -302,8 +329,8 @@ class Button(Base):
         # Tiếp tục cập nhật nếu nhạc đang phát
         if self.songs.is_playing and not self.songs.is_paused:
             self.canvas.after(500, self.update_progress_bar)
-
-    def format_time(self, seconds):
+    @staticmethod
+    def format_time(seconds):
         """Chuyển đổi giây sang định dạng mm:ss"""
         minutes = int(seconds // 60)
         seconds = int(seconds % 60)
@@ -362,7 +389,7 @@ class Button(Base):
             "love": self.toggle_love,
             "sleeptimer": lambda e: self.parent.songs.open_sleep_timer_window()
         }
-        self.buttons = {}  # Dictionary để lưu trữ các button nếu cần dùng sau này
+
         self.love_state = "love(1)"
         for key, (x, y) in button_positions.items():
             image = self.image_cache[self.love_state] if key == "love" else self.image_cache[key]
@@ -410,7 +437,8 @@ class Button(Base):
             self.canvas.itemconfig(self.buttons["repeat"], image=self.image_cache["repeat always"])
 
     # Tạo khung tìm kiếm bo góc bằng ảnh
-    def create_rounded_rectangle(self, width, height, radius, color):
+    @staticmethod
+    def create_rounded_rectangle(width, height, radius, color):
         # Tạo ảnh hình chữ nhật bo góc
         img = Image.new("RGBA", (width, height), (255, 255, 255, 0))  # Nền trong suốt
         draw = ImageDraw.Draw(img)
@@ -480,6 +508,14 @@ class Song(Base):
         self.total_time = 0
         self.paused_time = 0
         self.start_time = 0
+
+        self.song_data = {}
+        self.current_song_image = None
+        self.sleep_window = None
+        self.sleep_time = None
+        self.sleep_timer_entry = None
+        self.sleep_timer_running = None
+        self.sleep_thread = None
 
         self.cover_images = []
         self.song_tags = {}
@@ -657,7 +693,8 @@ class Song(Base):
 
                 try:
                     duration_str = self.get_mp3_duration(relative_to_assets(song["audio"]))
-                except:
+                except FileNotFoundError:
+                    print(f"Lỗi: Không tìm thấy file {song['audio']}")
                     duration_str = "0:00"
 
                 duration_id = self.music_canvas.create_text(
@@ -775,12 +812,13 @@ class Song(Base):
             )
         else:
             self.music_canvas.itemconfig(self.artist_name_id, text=self.current_song["Full_artist"])
+
     def xoay_dia(self):
         if not self.is_rotating:
             return  # Nếu không xoay thì dừng luôn
 
         # Xoay ảnh đã gộp (đĩa + bài hát)
-        rotated_disk = self.disk_ori_xoay.rotate(self.goc_xoay, resample=Image.BICUBIC)
+        rotated_disk = self.disk_ori_xoay.rotate(self.goc_xoay, resample=Image.Resampling.BICUBIC)
 
         # Chuyển thành PhotoImage để hiển thị trên giao diện
         self.disk_image = ImageTk.PhotoImage(rotated_disk)
@@ -789,7 +827,7 @@ class Song(Base):
         self.goc_xoay = (self.goc_xoay - 1) % 360  # Xoay ngược chiều kim đồng hồ
 
         # Gọi lại hàm sau 50ms để tiếp tục xoay
-        self.xoay_dia_id = self.music_canvas.after(50, self.xoay_dia)
+        self.xoay_dia_id = self.music_canvas.after(50, lambda: self.xoay_dia())
 
     def play_selected_song(self, event):
         """Phát bài hát khi click vào Next Up"""
@@ -863,8 +901,8 @@ class Song(Base):
         if event.widget != self.entry_search and self.listbox_results.size() == 0:
             self.listbox_results.place_forget()
             self.music_canvas.focus()
-
-    def get_mp3_duration(self,file_path):
+    @staticmethod
+    def get_mp3_duration(file_path):
         """Lấy thời lượng thực tế của file MP3"""
         try:
             audio = MP3(file_path)
@@ -926,15 +964,14 @@ class Song(Base):
             artist = song["artist"]
             image_file = song["image"]
             song_id = song["id"]
-            self.create_history_item(100, 100 + index * 50, title, artist,
-                                     image_file, song_id)
+            self.create_history_item(100, 100 + index * 50, title, artist, image_file, song_id)
         # Cập nhật lại khung cuộn chính xác
         self.history_frame.update_idletasks()
         self.history_canvas.config(scrollregion=self.history_canvas.bbox("all"))
 
-    def create_history_item(self, x, y, title, artist, image_file, song_id):
+    def create_song_item(self, parent_frame, title, artist, image_file, song_id, play_song_callback):
         """Tạo một ô bài hát trong khung lịch sử"""
-        frame = Frame(self.history_frame, bg="#E1CFE3", padx=10, pady=5)
+        frame = Frame(parent_frame, bg="#E1CFE3", padx=10, pady=5)
         frame.pack(fill="x", expand=True)
         img = PhotoImage(file=relative_to_assets(image_file))
         img_label = Label(frame, image=img, bg="#E1CFE3")
@@ -945,16 +982,42 @@ class Song(Base):
         text_frame.pack(side="left", fill="x", expand=True)
 
         text_color = "#FFFFFF" if self.parent.mood == "sad" else "#000000"
-        title_label = Label(text_frame, text=title, font=("Coiny Regular",
-                                                          18), fg=text_color, bg="#E1CFE3")
+        title_label = Label(text_frame, text=title, font=("Coiny Regular",18), fg=text_color, bg="#E1CFE3")
         title_label.pack(anchor="w")
         artist_label = Label(text_frame, text=artist, font=("Newsreader Regular", 14), fg=text_color, bg="#E1CFE3")
         artist_label.pack(anchor="w")
-        frame.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
-        img_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
-        title_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
-        artist_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
+
+        frame.bind("<Button-1>", lambda e, s_id=song_id: play_song_callback(song_id))
+        img_label.bind("<Button-1>", lambda e, s_id=song_id: play_song_callback(song_id))
+        title_label.bind("<Button-1>", lambda e, s_id=song_id: play_song_callback(song_id))
+        artist_label.bind("<Button-1>", lambda e, s_id=song_id: play_song_callback(song_id))
         self.parent.change_widget_colors(frame)
+
+    def create_history_item(self, x, y, title, artist, image_file, song_id):
+        self.create_song_item(self.history_frame, title, artist, image_file, song_id, self.play_song_from_history)
+    # def create_history_item(self, x, y, title, artist, image_file, song_id):
+    #     """Tạo một ô bài hát trong khung lịch sử"""
+    #     frame = Frame(self.history_frame, bg="#E1CFE3", padx=10, pady=5)
+    #     frame.pack(fill="x", expand=True)
+    #     img = PhotoImage(file=relative_to_assets(image_file))
+    #     img_label = Label(frame, image=img, bg="#E1CFE3")
+    #     img_label.image = img
+    #     img_label.pack(side="left", padx=10)
+    #
+    #     text_frame = Frame(frame, bg="#E1CFE3")
+    #     text_frame.pack(side="left", fill="x", expand=True)
+    #
+    #     text_color = "#FFFFFF" if self.parent.mood == "sad" else "#000000"
+    #     title_label = Label(text_frame, text=title, font=("Coiny Regular",
+    #                                                       18), fg=text_color, bg="#E1CFE3")
+    #     title_label.pack(anchor="w")
+    #     artist_label = Label(text_frame, text=artist, font=("Newsreader Regular", 14), fg=text_color, bg="#E1CFE3")
+    #     artist_label.pack(anchor="w")
+    #     frame.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
+    #     img_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
+    #     title_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
+    #     artist_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_history(song_id))
+    #     self.parent.change_widget_colors(frame)
 
     def play_song_from_history(self, song_id):
         """Phát nhạc khi nhấn vào bài hát trong lịch sử"""
@@ -985,7 +1048,8 @@ class Song(Base):
         else:
             self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
 
-    def update_favorite_songs(self, song_id, action=None):
+    @staticmethod
+    def update_favorite_songs(song_id, action=None):
         """Cập nhật danh sách favorite_songs của user hiện tại"""
         user = session.current_user or {}
         email = user.get("email")
@@ -1009,7 +1073,8 @@ class Song(Base):
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
 
-    def update_history_songs(self, song_id):
+    @staticmethod
+    def update_history_songs(song_id):
         """Cập nhật danh sách history của user hiện tại"""
         user = session.current_user or {}
         email = user.get("email")
@@ -1064,8 +1129,7 @@ class Song(Base):
             widget.destroy()
         # Tạo lại danh sách yêu thích
         for index, song in enumerate(self.favorite_songs):
-            self.create_favorite_item(100, 100 + index * 50, song["title"],
-                                      song["artist"], song["image"], song["id"])
+            self.create_favorite_item(song["title"], song["artist"], song["image"], song["id"])
 
         # Cập nhật khung cuộn
         self.favorites_frame.update_idletasks()
@@ -1086,33 +1150,36 @@ class Song(Base):
 
         self.update_love_button()
 
-    def create_favorite_item(self, x, y, title, artist, image_file, song_id):
-        """Tạo một ô bài hát trong danh sách yêu thích"""
-        frame = Frame(self.favorites_frame, bg="#E1CFE3", padx=10, pady=5)
-        frame.pack(fill="x", expand=True)
+    def create_favorite_item(self, title, artist, image_file, song_id):
+        self.create_song_item(self.favorites_frame, title, artist, image_file, song_id, self.play_song_from_favorites)
 
-        img = PhotoImage(file=relative_to_assets(image_file))
-        img_label = Label(frame, image=img, bg="#E1CFE3")
-        img_label.image = img
-        img_label.pack(side="left", padx=10)
+    # def create_favorite_item(self, x, y, title, artist, image_file, song_id):
+    #     """Tạo một ô bài hát trong danh sách yêu thích"""
+    #     frame = Frame(self.favorites_frame, bg="#E1CFE3", padx=10, pady=5)
+    #     frame.pack(fill="x", expand=True)
+    #
+    #     img = PhotoImage(file=relative_to_assets(image_file))
+    #     img_label = Label(frame, image=img, bg="#E1CFE3")
+    #     img_label.image = img
+    #     img_label.pack(side="left", padx=10)
+    #
+    #     text_frame = Frame(frame, bg="#E1CFE3")
+    #     text_frame.pack(side="left", fill="x", expand=True)
+    #
+    #     text_color = "#FFFFFF" if self.parent.mood == "sad" else "#000000"
+    #     title_label = Label(text_frame, text=title, font=("Coiny Regular",18), fg=text_color, bg="#E1CFE3")
+    #     title_label.pack(anchor="w")
+    #
+    #     artist_label = Label(text_frame, text=artist, font=("Newsreader "
+    #                                                         "Regular", 14),
+    #                          fg=text_color, bg="#E1CFE3")
+    #     artist_label.pack(anchor="w")
 
-        text_frame = Frame(frame, bg="#E1CFE3")
-        text_frame.pack(side="left", fill="x", expand=True)
-
-        text_color = "#FFFFFF" if self.parent.mood == "sad" else "#000000"
-        title_label = Label(text_frame, text=title, font=("Coiny Regular",18), fg=text_color, bg="#E1CFE3")
-        title_label.pack(anchor="w")
-
-        artist_label = Label(text_frame, text=artist, font=("Newsreader "
-                                                            "Regular", 14),
-                             fg=text_color, bg="#E1CFE3")
-        artist_label.pack(anchor="w")
-
-        frame.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
-        img_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
-        title_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
-        artist_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
-        self.parent.change_widget_colors(frame)
+        # frame.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
+        # img_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
+        # title_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
+        # artist_label.bind("<Button-1>", lambda e, s_id=song_id: self.play_song_from_favorites(song_id))
+        # self.parent.change_widget_colors(frame)
 
     def play_song_from_favorites(self, song_id):
         """Phát nhạc khi nhấn vào bài hát trong danh sách yêu thích"""
@@ -1327,7 +1394,8 @@ class Song(Base):
             self.current_index = (self.current_index - 1) % len(self.songs_list)
             self.play_song(self.current_index)
 
-    def stop_music(self):
+    @staticmethod
+    def stop_music():
         pygame.mixer.music.stop()
 
     def create_song(self, song):
@@ -1377,7 +1445,7 @@ class Song(Base):
         with open("data/songs.json", "r", encoding="utf-8") as file:
             songs = json.load(file)
 
-        base = Base()
+        Base()
 
         for song in songs:
             song["audio"] = relative_to_assets(song["audio"])
@@ -1386,7 +1454,7 @@ class Song(Base):
 
     def open_sleep_timer_window(self):
         """Mở cửa sổ Sleep Timer hoặc hiện lại nếu đang ẩn"""
-        if hasattr(self, "sleep_window") and self.sleep_window.winfo_exists():
+        if getattr(self, "sleep_window", None) and self.sleep_window.winfo_exists():
             self.sleep_window.deiconify()  # Hiện lại nếu cửa sổ đã tồn tại
             return
 
@@ -1395,21 +1463,20 @@ class Song(Base):
         self.sleep_window.title("Sleep Timer")
         self.sleep_window.geometry("300x200")
         self.sleep_window.configure(bg="#E1CFE3")
-        self.sleep_window.iconbitmap(relative_to_assets("logo.ico"))
         self.sleep_window.resizable(False, False)
 
-        Label(self.sleep_window, text="Sleep Timer", font=("Inter", 14, "bold"), bg="white").pack(pady=10)
+        Label(self.sleep_window, text="Hẹn giờ tắt ứng dụng:", font=("Jua", 14), bg="white").pack(pady=10)
 
         # Entry nhập số phút
-        self.sleep_timer_entry = tk.Entry(self.sleep_window, font=("Inter", 12), width=10)
+        self.sleep_timer_entry = tk.Entry(self.sleep_window, font=("Jua", 12), width=10)
         self.sleep_timer_entry.pack(pady=5)
         self.sleep_timer_entry.insert(0, "10")  # Mặc định là 10 phút
 
         # Nút Bắt đầu và Hủy hẹn giờ
-        start_btn = tk.Button(self.sleep_window, text="Start", font=("Inter", 12), command=self.start_sleep_timer)
+        start_btn = tk.Button(self.sleep_window, text="Bắt đầu", font=("Jua", 12), command=self.start_sleep_timer)
         start_btn.pack(pady=5)
 
-        stop_btn = tk.Button(self.sleep_window, text="Cancel", font=("Inter", 12), command=self.stop_sleep_timer)
+        stop_btn = tk.Button(self.sleep_window, text="Hủy", font=("Jua", 12), command=self.stop_sleep_timer)
         stop_btn.pack(pady=5)
 
         self.sleep_timer_running = False
