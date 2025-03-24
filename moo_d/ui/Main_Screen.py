@@ -1395,6 +1395,7 @@ class Song(Base):
         self.sleep_window.title("Sleep Timer")
         self.sleep_window.geometry("300x200")
         self.sleep_window.configure(bg="#E1CFE3")
+        self.sleep_window.iconbitmap(relative_to_assets("logo.ico"))
         self.sleep_window.resizable(False, False)
 
         Label(self.sleep_window, text="Sleep Timer", font=("Inter", 14, "bold"), bg="white").pack(pady=10)

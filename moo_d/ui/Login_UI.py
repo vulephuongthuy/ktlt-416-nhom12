@@ -258,8 +258,8 @@ class SignUpForm(Base):
         users.append(new_user)
 
         # Lưu danh sách mới vào file JSON
-        with open("data/users.json", "w", encoding="utf-8") as f:
-            json.dump(users, f, indent=4, ensure_ascii=False)
+        with open("data/users.json", "w", encoding="utf-8") as file:
+            json.dump(users, file, indent=4, ensure_ascii=False)
         messagebox.showinfo("Success", "User registered successfully!")
         self.go_back()
         self.send_welcome_email(email)

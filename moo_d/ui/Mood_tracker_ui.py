@@ -11,6 +11,7 @@ class MoodTracker(tk.Toplevel, Base):  # Đảm bảo dùng Toplevel
         self.title("Mood Tracker")
         self.iconbitmap(relative_to_assets("logo.ico"))
         self.geometry("1000x600")
+        self.iconbitmap(relative_to_assets("logo.ico"))
         self.configure(bg="white")
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
