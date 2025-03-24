@@ -19,7 +19,7 @@ class MoodTracker(tk.Toplevel, Base):  # Đảm bảo dùng Toplevel
         self.canvas = Canvas(self, bg="#758FC3", height=600, width=1000, bd=0, highlightthickness=0, relief="ridge")
         self.canvas.place(x=0, y=0)
         self.image_cache = {}
-        self.load_background()
+        self.load_background(self.canvas)
         self.create_widgets()
         # MoodTrackerUI(self, self.canvas, self.image_cache)  # Không gọi mainloop() ở đây
 
@@ -28,7 +28,7 @@ class MoodTracker(tk.Toplevel, Base):  # Đảm bảo dùng Toplevel
         self.quit()
         sys.exit()
 
-    def load_background(self):
+    def load_background(self, canvas):
         """ Load nền và các hình ảnh """
         self.bg_image = self.load_image("mood_bg.jpg", opacity=0.6, size=(1000, 600))
         self.bg2_image = self.load_image("ffcccc.png", opacity=0.3, size=(1000, 600))
