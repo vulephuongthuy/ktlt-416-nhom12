@@ -17,7 +17,7 @@ class Profile(Toplevel):
         self.title("Demo")
         self.geometry("600x550")
         self.resizable(False, False)
-        self.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\moo_d\assets\frame0\logo.ico")
+        self.iconbitmap(relative_to_assets("logo.ico"))
 
         self.canvas = Canvas(self, width=800, height=600)
         self.canvas.place(x=0, y=0)

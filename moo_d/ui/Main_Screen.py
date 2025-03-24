@@ -54,7 +54,7 @@ class MainScreen(Toplevel):
         self.mood = mood
         self.resizable(False, False)
         self.title("Moo_d")
-        self.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\moo_d\assets\frame0\logo.ico")
+        self.iconbitmap(relative_to_assets("logo.ico"))
         self.geometry("1000x600+120+15")
         self.main_color = "#9E80AD" if self.mood == "sad" else "#E1CFE3"
         self.configure(bg="#FFFFFF")
@@ -1395,6 +1395,7 @@ class Song(Base):
         self.sleep_window.title("Sleep Timer")
         self.sleep_window.geometry("300x200")
         self.sleep_window.configure(bg="#E1CFE3")
+        self.sleep_window.iconbitmap(relative_to_assets("logo.ico"))
         self.sleep_window.resizable(False, False)
 
         Label(self.sleep_window, text="Hẹn giờ tắt ứng dụng:", font=("Jua", 14), bg="white").pack(pady=10)
