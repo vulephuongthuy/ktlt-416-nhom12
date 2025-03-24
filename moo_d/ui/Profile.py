@@ -15,9 +15,9 @@ class Profile(Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Demo")
+        self.iconbitmap(relative_to_assets("logo.ico"))
         self.geometry("600x550")
         self.resizable(False, False)
-        self.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\moo_d\assets\frame0\logo.ico")
 
         self.canvas = Canvas(self, width=800, height=600)
         self.canvas.place(x=0, y=0)
@@ -146,23 +146,6 @@ class Profile(Toplevel):
             messagebox.showwarning("Warning", f"Failed to load profile picture, using default image. Error: {e}")
             self.load_profile_image(str(relative_to_assets("profile_default.png")))
 
-    # def change_profile_picture(self):
-    #     """Mở hộp thoại chọn ảnh và cập nhật ảnh profile"""
-    #     file_path = filedialog.askopenfilename(
-    #         title="Chọn ảnh",
-    #         filetypes=[("Ảnh PNG", "*.png"), ("Ảnh JPG", "*.jpg"), ("Ảnh JPEG", "*.jpeg"),
-    #                    ("Tất cả ảnh", "*.png;*.jpg;*.jpeg")]
-    #     )
-    #
-    #     if file_path:
-    #         # Lưu ảnh vào thư mục profile_pictures
-    #         new_file_path = PROFILE_PIC_PATH / Path(file_path).name
-    #         shutil.copy(file_path, new_file_path)  # Sao chép ảnh vào thư mục lưu trữ
-    #
-    #         # Cập nhật vào file JSON ngay lập tức
-    #         self.update_user_data(str(new_file_path))
-    #         self.load_profile_image(str(new_file_path))
-    #         return  # Kết thúc hàm để tránh lỗi
     def change_profile_picture(self):
         """Mở hộp thoại chọn ảnh, cập nhật ảnh profile và xóa ảnh cũ."""
         file_path = filedialog.askopenfilename(

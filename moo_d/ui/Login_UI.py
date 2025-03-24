@@ -14,7 +14,7 @@ class LoginScreen(Base):
         self.window = master
         self.window.title("Login")
         self.window.geometry("1000x600")
-        self.window.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\moo_d\assets\frame0\logo.ico")
+        self.window.iconbitmap(relative_to_assets("logo.ico"))
         self.window.configure(bg="white")
         self.window.resizable(False, False)
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -144,7 +144,7 @@ class SignUpScreen(Toplevel, Base):
         Base.__init__(self)
         self.title("Sign Up")
         self.geometry("1000x600")
-        self.iconbitmap(r"D:\HKII_NAM2\KTLT\ktlt-416-nhom12\moo_d\assets\frame0\logo.ico")
+        self.iconbitmap(relative_to_assets("logo.ico"))
         self.configure(bg="white")
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
