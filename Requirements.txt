@@ -1,0 +1,16 @@
+customtkinter
+pygame
+pillow
+mutagen
+tk
+json
+os
+sys
+re
+shutil
+threading
+time
+pathlib
+tkinter
+smtplib
+email
