@@ -626,8 +626,8 @@ class Song(Base):
             self.entry_search.place(x=700, y=25, width=220, height=20)
             self.display_nextup()
             # self.is_rotating = True
-            if not hasattr(self, "song_name_id") or self.song_name_id is None:
-                self.hien_thi_dia_nhac()
+
+            self.hien_thi_dia_nhac()
             self.update_song_image()
             self.update_song_info()
 
@@ -720,7 +720,6 @@ class Song(Base):
                 self.nextup_items.extend([cover_id, name_id, artist_id, duration_id])
 
                 for tag_id in [cover_id, name_id, artist_id, duration_id]:
-                    self.song_tags[tag_id] = song
                     self.music_canvas.tag_bind(tag_id, "<Button-1>", self.play_selected_song)
 
                 y_offset += 110  # dịch xuống mỗi bài 120px
@@ -1506,7 +1505,10 @@ class Song(Base):
         if self.sleep_timer_running:
             self.sleep_timer_running = False  # Đánh dấu hẹn giờ đã kết thúc
             if not self.parent.songs.is_paused:
-                self.parent.songs.pause_and_resume_song()  # Gọi hàm pause thay vì dừng nhạc
+                self.parent.after(0, self.parent.songs.pause_and_resume_song)  # Gọi hàm pause thay vì dừng nhạc
+
+
+
 
     def stop_sleep_timer(self):
         """Hủy Sleep Timer"""
