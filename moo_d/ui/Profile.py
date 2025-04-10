@@ -3,10 +3,13 @@ import os
 import shutil
 from tkinter import *
 from tkinter import messagebox, filedialog
+import re
+
 from customtkinter import CTkEntry
 
 import moo_d.session
 from moo_d.functions import *
+
 
 class Profile(Toplevel):
     def __init__(self, parent):
@@ -83,6 +86,10 @@ class Profile(Toplevel):
                                        corner_radius=0, show="*", text_color="#1E1E1E")
         self.password_entry.insert(0, password)
         self.password_entry.place(x=180, y=380)
+    @staticmethod
+    def is_valid_username(username):
+        """Kiểm tra username chỉ chứa chữ cái, số, dấu gạch dưới (_), tối thiểu 3 ký tự."""
+        return re.match(r"^[a-zA-Z0-9_]{3,}$", username) is not None
 
     def update_info(self):
         """Cập nhật thông tin người dùng và lưu vào file JSON"""
@@ -94,6 +101,14 @@ class Profile(Toplevel):
 
         if not new_username or not new_password:
             messagebox.showerror("Error", "Please enter all fields!")
+            return
+
+        if not self.is_valid_username(new_username):
+            messagebox.showerror("Error", "Invalid username! It must contain only letters, numbers, or underscores (_), with at least 3 characters.")
+            return
+
+        if len(new_password) < 6:
+            messagebox.showerror("Error", "Password must be at least 6 characters long!")
             return
 
         try:
