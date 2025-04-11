@@ -598,7 +598,7 @@ class Song(Base):
         self.image_cache["logo_full_player"] = self.logo_img
         self.music_canvas.create_image(960, 35, image=self.image_cache["logo_full_player"], tag="logo_full_player")
 
-        self.music_canvas.bind("<Button-1>", self.hide_listbox)
+        self.music_canvas.bind("<Button-1>", self.on_canvas_click)
         self.entry_search.bind("<FocusOut>", self.hide_listbox)
         self.entry_search.bind("<FocusIn>", self.show_listbox)
         self.entry_search.bind("<KeyRelease>", self.search_song_1)
@@ -615,6 +615,11 @@ class Song(Base):
         self.parent.bind("<Configure>", self.check_song_end)
         self.update_colors = self.parent.update_colors
 
+    def on_canvas_click(self, event):
+        """Xử lý khi click vào canvas: focus entry và xử lý ẩn listbox nếu cần"""
+        # Focus vào entry_search
+        self.entry_search.focus_set()
+        self.hide_listbox(event)
     def toggle_music_player(self, event=None):
         """Ẩn/hiện giao diện phát nhạc khi click vào `fixed_canvas`"""
         if self.music_canvas.winfo_ismapped():
@@ -898,7 +903,7 @@ class Song(Base):
     def hide_listbox(self, event):
         """Ẩn Listbox khi click ra ngoài và Listbox rỗng"""
         # Nếu click không vào entry_search và listbox rỗng, thì ẩn
-        if event.widget != self.entry_search and self.listbox_results.size() == 0:
+        if event.widget not in [self.entry_search, self.listbox_results] and self.listbox_results.size() == 0:
             self.listbox_results.place_forget()
             self.music_canvas.focus_set()
     @staticmethod
