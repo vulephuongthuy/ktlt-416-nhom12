@@ -663,7 +663,7 @@ class Song(Base):
         self.song_tags = {}
 
         nextup_title = self.music_canvas.create_text(
-            30, 10, text="Next Up", font=("Coiny", 16, "bold"), fill="black", anchor="nw"
+            30, 10, text="Next Up", font=("Coiny", 16, "bold"), fill=self.text_color, anchor="nw"
         )
         self.nextup_items.append(nextup_title)
 
@@ -856,7 +856,7 @@ class Song(Base):
 
         # Tìm bài hát trong danh sách
         for song_id, song in self.song_data.items():
-            if song["title"] == selected_song_name:
+            if song["Full_title"] == selected_song_name:
                 self.current_index = int(song["index"])
                 break
         else:
@@ -866,6 +866,7 @@ class Song(Base):
         # Phát bài hát mới
         self.play_song(self.current_index)
         self.listbox_results.place_forget()
+        self.entry_search.delete(0, END)
 
     def search_song_1(self, event):
         """Tìm kiếm bài hát và hiển thị trong Listbox"""
@@ -880,8 +881,8 @@ class Song(Base):
 
         # Tìm bài hát có tên chứa từ khóa tìm kiếm
         for song_id, song in self.song_data.items():  # Lấy cả key và value
-            if search_query in song["title"].lower():
-                results.append(song["title"])
+            if search_query in song["Full_title"].lower():
+                results.append(song["Full_title"])
 
         if results:
             for song_name in results:
@@ -899,7 +900,7 @@ class Song(Base):
         # Nếu click không vào entry_search và listbox rỗng, thì ẩn
         if event.widget != self.entry_search and self.listbox_results.size() == 0:
             self.listbox_results.place_forget()
-            self.music_canvas.focus()
+            self.music_canvas.focus_set()
     @staticmethod
     def get_mp3_duration(file_path):
         """Lấy thời lượng thực tế của file MP3"""
